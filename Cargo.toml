@@ -1,0 +1,16 @@
+[package]
+name = "btc-nova-lc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bellpepper = { version = "0.4.1", default-features = false }
+bellpepper-core = { version = "0.4.0", default-features = false }
+ff = "0.13.0"
+num-bigint = "0.4.6"
+
+[dev-dependencies]
+pasta_curves = "0.5.1"
+rand = "0.8.5"
+rand_core = "0.6.4"
+rand_xorshift = "0.3.0"
