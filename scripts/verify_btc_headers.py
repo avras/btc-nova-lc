@@ -36,9 +36,9 @@ def verify_pow(hdr: bytes) -> bytes:
     assert(hdr_hash_int <= target)
     return hdr_hash
     
-def verify_target_update(hdr: bytes, height: int, prev_block_target: int, prev_block_timestamp: int, epoch_start_timestamp: int):
+def verify_target_update(hdr: bytes, height_mod_2016: int, prev_block_target: int, prev_block_timestamp: int, epoch_start_timestamp: int):
     current_target = nbits_to_target(hdr[72:76])
-    if height > 0 and height % 2016 == 0:
+    if height_mod_2016 == 2016:
         time_diff = prev_block_timestamp - epoch_start_timestamp
         ideal_timespan = 2016 * 10 * 60
 
@@ -60,13 +60,13 @@ def verify_timestamp(current_timestamp: int, prev_timestamps: list[int]):
     median  = sorted(prev_timestamps)[5]
     assert(current_timestamp >= median)
 
-def verify_current_header(hdr: bytes, height: int, validation_ctx: dict) -> dict:
-    if height > 0:
+def verify_current_header(hdr: bytes, validation_ctx: dict) -> dict:
+    if validation_ctx["height_mod_2016"] != 0:
         assert(validation_ctx["prev_blockhash"] == hdr[4:36])
     validation_ctx["prev_blockhash"] = verify_pow(hdr)
     verify_target_update(
         hdr,
-        height,
+        validation_ctx["height_mod_2016"],
         validation_ctx["prev_block_target"],
         validation_ctx["prev_block_timestamp"],
         validation_ctx["epoch_start_timestamp"]
@@ -80,13 +80,17 @@ def verify_current_header(hdr: bytes, height: int, validation_ctx: dict) -> dict
     validation_ctx["prev_timestamps"].insert(0, current_timestamp)
     validation_ctx["prev_timestamps"].pop()
 
-    if height % 2016 == 0:
+    if validation_ctx["height_mod_2016"] == 2016:
         validation_ctx["epoch_start_timestamp"] = parse_timestamp(hdr)
+        validation_ctx["height_mod_2016"] = 1
+    else:
+        validation_ctx["height_mod_2016"] += 1
     return validation_ctx
 
 def verify_headers(filename, num_headers):
     # Block header validation context
     validation_ctx = {
+        "height_mod_2016": 0,
         "prev_block_target": nbits_to_target(MAX_TARGET_BYTES),
         "prev_block_timestamp": 0,
         "epoch_start_timestamp": 0,
@@ -103,7 +107,7 @@ def verify_headers(filename, num_headers):
                 hdr = bytes.fromhex(hdr_hex)
                 assert(len(hdr) == 80)
                 
-                validation_ctx = verify_current_header(hdr, height, validation_ctx)
+                validation_ctx = verify_current_header(hdr, validation_ctx)
                 chain_work += (2**256) // (nbits_to_target(hdr[72:76]) + 1)
                 print("Block " + str(height) + " verified. Chainwork = " + str(hex(chain_work)))
                 height = height+1
