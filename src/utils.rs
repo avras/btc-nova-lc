@@ -1,9 +1,27 @@
+use bellpepper::gadgets::Assignment;
 use bellpepper_core::{
     boolean::{AllocatedBit, Boolean},
     num::AllocatedNum,
     ConstraintSystem, LinearCombination, SynthesisError, Variable,
 };
 use ff::{PrimeField, PrimeFieldBits};
+
+/// Allocate a variable equal to a constant
+pub fn alloc_constant<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
+    mut cs: CS,
+    value: Scalar,
+) -> Result<AllocatedNum<Scalar>, SynthesisError> {
+    let num = AllocatedNum::alloc(cs.namespace(|| "alloc num"), || Ok(value))?;
+
+    cs.enforce(
+        || "check allocated variable equals constant",
+        |lc| lc + num.get_variable(),
+        |lc| lc + CS::one(),
+        |lc| lc + (value, CS::one()),
+    );
+
+    Ok(num)
+}
 
 /// Check that two numbers are equal and return a bit
 ///
@@ -154,6 +172,64 @@ where
     Ok(a_bits)
 }
 
+/// Allocates a field element from a little-endian byte vector.
+/// The bytes themselves are represented as a `Boolean` vector.
+/// Note that the bytes themselves have the most significant
+/// bit appearing first. The input vector has the least
+/// significant byte appearing first.
+pub(crate) fn le_bytes_to_alloc_num<Scalar, CS>(
+    mut cs: CS,
+    bytes_le: &Vec<Boolean>,
+) -> Result<AllocatedNum<Scalar>, SynthesisError>
+where
+    Scalar: PrimeFieldBits,
+    CS: ConstraintSystem<Scalar>,
+{
+    assert!(bytes_le.len() % 8 == 0);
+    assert!(bytes_le.len() <= Scalar::CAPACITY as usize);
+
+    let bytes_be = bytes_le.chunks(8).rev().collect::<Vec<_>>().concat();
+    let (num_value, _) =
+        bytes_be
+            .iter()
+            .rev()
+            .fold(
+                (Some(Scalar::ZERO), Scalar::ONE),
+                |(acc, coeff), b| match b.get_value() {
+                    Some(b_val) => {
+                        if b_val {
+                            acc.map(|a| a + coeff)
+                        } else {
+                            acc
+                        };
+                        (acc, coeff.double())
+                    }
+                    None => (None, coeff.double()),
+                },
+            );
+
+    let num = AllocatedNum::alloc(cs.namespace(|| "alloc num"), || match num_value {
+        Some(v) => Ok(v),
+        None => Err(SynthesisError::AssignmentMissing),
+    })?;
+
+    cs.enforce(
+        || "check num consistency with num bits",
+        |mut lc| {
+            let mut coeff = Scalar::ONE;
+            for b in bytes_be.iter().rev() {
+                lc = lc + &b.lc(CS::one(), coeff);
+                coeff = coeff.double();
+            }
+            lc
+        },
+        |lc| lc + CS::one(),
+        |lc| lc + num.get_variable(),
+    );
+
+    Ok(num)
+}
+
 /// Takes two allocated numbers (a, b) that are assumed
 /// to be in the range `0` to `(1 << n_bits) - 1`.
 /// Returns an allocated `Boolean`` variable with value `true`
@@ -199,35 +275,32 @@ where
     Ok(offset_diff_bits[n_bits].not())
 }
 
-/// Takes two allocated numbers (a, b) that are assumed
-/// to be in the range `0` to `(1 << n_bits) - 1`.
-/// Returns an allocated `Boolean`` variable with value `true`
-/// if the `a` and `b` are such that a is less than or equal to b,
-/// `false` otherwise. Implementation is based on LessThan in
-/// circomlib https://github.com/iden3/circomlib/blob/master/circuits/comparators.circom
-pub(crate) fn less_than_or_equal<Scalar, CS>(
+// From Nova/src/gadgets/utils.rs
+/// If condition return a otherwise b
+pub(crate) fn conditionally_select<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
     mut cs: CS,
     a: &AllocatedNum<Scalar>,
     b: &AllocatedNum<Scalar>,
-    n_bits: usize,
-) -> Result<Boolean, SynthesisError>
-where
-    Scalar: PrimeFieldBits,
-    CS: ConstraintSystem<Scalar>,
-{
-    let b_plus_one = AllocatedNum::alloc(cs.namespace(|| "alloc b+1"), || match b.get_value() {
-        Some(b_val) => Ok(b_val + Scalar::ONE),
-        None => Err(SynthesisError::AssignmentMissing),
+    condition: &Boolean,
+) -> Result<AllocatedNum<Scalar>, SynthesisError> {
+    let c = AllocatedNum::alloc(cs.namespace(|| "conditional select result"), || {
+        if *condition.get_value().get()? {
+            Ok(*a.get_value().get()?)
+        } else {
+            Ok(*b.get_value().get()?)
+        }
     })?;
 
+    // a * condition + b*(1-condition) = c ->
+    // a * condition - b*condition = c - b
     cs.enforce(
-        || "check value of b_plus_one",
-        |lc| lc + b_plus_one.get_variable(),
-        |lc| lc + CS::one(),
-        |lc| lc + b.get_variable() + CS::one(),
+        || "conditional select constraint",
+        |lc| lc + a.get_variable() - b.get_variable(),
+        |_| condition.lc(CS::one(), Scalar::ONE),
+        |lc| lc + c.get_variable() - b.get_variable(),
     );
 
-    less_than(&mut cs.namespace(|| "a <= b"), a, &b_plus_one, n_bits)
+    Ok(c)
 }
 
 /// Split a allocated field element in the range 0 to 2^192-1
