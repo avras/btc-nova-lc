@@ -1,3 +1,4 @@
+use bellpepper::gadgets::Assignment;
 use bellpepper_core::{
     boolean::{AllocatedBit, Boolean},
     num::AllocatedNum,
@@ -6,7 +7,7 @@ use bellpepper_core::{
 use ff::PrimeFieldBits;
 use num_bigint::BigUint;
 
-use crate::utils::{alloc_num_equals, less_than, range_check_num, split_64_128};
+use crate::utils::{alloc_constant, alloc_num_equals, less_than, range_check_num, split_64_128};
 
 /// Represents an 256-bit unsigned integer
 pub(crate) struct Uint256<Scalar: PrimeFieldBits> {
@@ -91,16 +92,12 @@ where
             f = f.double();
         }
 
-        let low_limb =
-            AllocatedNum::alloc(cs.namespace(|| "alloc lower limb"), || match low_value {
-                Some(v) => Ok(v),
-                None => Err(SynthesisError::AssignmentMissing),
-            })?;
-        let high_limb =
-            AllocatedNum::alloc(cs.namespace(|| "alloc higher limb"), || match high_value {
-                Some(v) => Ok(v),
-                None => Err(SynthesisError::AssignmentMissing),
-            })?;
+        let low_limb = AllocatedNum::alloc(cs.namespace(|| "alloc lower limb"), || {
+            low_value.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let high_limb = AllocatedNum::alloc(cs.namespace(|| "alloc higher limb"), || {
+            high_value.ok_or(SynthesisError::AssignmentMissing)
+        })?;
 
         // Check that lower limb is consistent with lower order bits
         cs.enforce(
@@ -143,6 +140,30 @@ where
         })
     }
 
+    /// Converts a uint256 to a field element without checking
+    /// for overflows.
+    pub(crate) fn uint256_to_field_element_unchecked<CS>(
+        &self,
+        mut cs: CS,
+    ) -> Result<AllocatedNum<Scalar>, SynthesisError>
+    where
+        CS: ConstraintSystem<Scalar>,
+    {
+        let pow128 = Scalar::from_u128(u128::MAX) + Scalar::ONE;
+
+        let fe_val = *self.low.get_value().get()? + *self.high.get_value().get()? * pow128;
+        let fe = alloc_constant(cs.namespace(|| "alloc field element"), fe_val)?;
+
+        cs.enforce(
+            || "check field element value",
+            |lc| lc + self.low.get_variable() + (pow128, self.high.get_variable()),
+            |lc| lc + CS::one(),
+            |lc| lc + fe.get_variable(),
+        );
+
+        Ok(fe)
+    }
+
     /// Returns a true Boolean if `a` < `b``. The limbs of `a` and `b` are
     /// assumed to be in the range 0 to 2^128 - 1.
     pub(crate) fn less_than<CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Boolean, SynthesisError>
@@ -174,6 +195,20 @@ where
             &a_high_lt_b_high,
             &tmp,
         )
+    }
+
+    /// Returns a true Boolean if `a` <= `b``. The limbs of `a` and `b` are
+    /// assumed to be in the range 0 to 2^128 - 1.
+    pub(crate) fn less_than_or_equal<CS>(
+        mut cs: CS,
+        a: &Self,
+        b: &Self,
+    ) -> Result<Boolean, SynthesisError>
+    where
+        CS: ConstraintSystem<Scalar>,
+    {
+        let is_b_lt_a = Self::less_than(cs.namespace(|| "b < a"), b, a)?;
+        Ok(is_b_lt_a.not())
     }
 
     /// Enforces `a` == `b`.
@@ -228,21 +263,19 @@ where
         assert!(Scalar::CAPACITY >= 128);
         let ones_128 = Scalar::from_u128(u128::MAX);
 
-        let low_not =
-            AllocatedNum::alloc(
-                cs.namespace(|| "alloc complemented low limb"),
-                || match self.low.get_value() {
-                    Some(val) => Ok(ones_128 - val),
-                    None => Err(SynthesisError::AssignmentMissing),
-                },
-            )?;
-        let high_not = AllocatedNum::alloc(
-            cs.namespace(|| "alloc complemented high limb"),
-            || match self.high.get_value() {
-                Some(val) => Ok(ones_128 - val),
-                None => Err(SynthesisError::AssignmentMissing),
-            },
-        )?;
+        let low_not = AllocatedNum::alloc(cs.namespace(|| "alloc complemented low limb"), || {
+            self.low
+                .get_value()
+                .map(|val| ones_128 - val)
+                .ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let high_not =
+            AllocatedNum::alloc(cs.namespace(|| "alloc complemented high limb"), || {
+                self.high
+                    .get_value()
+                    .map(|val| ones_128 - val)
+                    .ok_or(SynthesisError::AssignmentMissing)
+            })?;
 
         cs.enforce(
             || "check complemented low limb value",
@@ -297,8 +330,7 @@ where
             carry_high,
         )?);
 
-        let mut pow128 = Scalar::from_u128(u128::MAX);
-        pow128 += Scalar::ONE;
+        let pow128 = Scalar::from_u128(u128::MAX) + Scalar::ONE;
 
         let res_low = AllocatedNum::alloc(cs.namespace(|| "allow sum low"), || {
             match (a.low.get_value(), b.low.get_value(), carry_low) {
@@ -464,13 +496,10 @@ where
         let pow64 = Scalar::from_u128(1u128 << 64);
 
         // Lower limb of the less significant uint256
-        let low0 = AllocatedNum::alloc(
-            cs.namespace(|| "alloc lower limb of lower uint256"),
-            || match (res0.get_value(), res1.get_value()) {
-                (Some(r0), Some(r1)) => Ok(r0 + pow64 * r1),
-                (_, _) => Err(SynthesisError::AssignmentMissing),
-            },
-        )?;
+        let low0 =
+            AllocatedNum::alloc(cs.namespace(|| "alloc lower limb of lower uint256"), || {
+                Ok(*res0.get_value().get()? + pow64 * *res1.get_value().get()?)
+            })?;
         // Check that low0 is consistent with res0 and res1
         cs.enforce(
             || "check low0 == res0 +  (2^64) * res1",
@@ -482,10 +511,7 @@ where
         // Higher limb of the less significant uint256
         let low1 = AllocatedNum::alloc(
             cs.namespace(|| "alloc higher limb of lower uint256"),
-            || match (res2.get_value(), res3.get_value()) {
-                (Some(r2), Some(r3)) => Ok(r2 + pow64 * r3),
-                (_, _) => Err(SynthesisError::AssignmentMissing),
-            },
+            || Ok(*res2.get_value().get()? + pow64 * *res3.get_value().get()?),
         )?;
         // Check that low1 is consistent with res2 and res3
         cs.enforce(
@@ -498,10 +524,7 @@ where
         // Lower limb of the more significant uint256
         let high0 = AllocatedNum::alloc(
             cs.namespace(|| "alloc lower limb of higher uint256"),
-            || match (res4.get_value(), res5.get_value()) {
-                (Some(r4), Some(r5)) => Ok(r4 + pow64 * r5),
-                (_, _) => Err(SynthesisError::AssignmentMissing),
-            },
+            || Ok(*res4.get_value().get()? + pow64 * *res5.get_value().get()?),
         )?;
         // Check that high0 is consistent with res4 and res5
         cs.enforce(
@@ -514,10 +537,7 @@ where
         // Higher limb of the more significant uint256
         let high1 = AllocatedNum::alloc(
             cs.namespace(|| "alloc higher limb of higher uint256"),
-            || match (res6.get_value(), carry.get_value()) {
-                (Some(r6), Some(c)) => Ok(r6 + pow64 * c),
-                (_, _) => Err(SynthesisError::AssignmentMissing),
-            },
+            || Ok(*res6.get_value().get()? + pow64 * *carry.get_value().get()?),
         )?;
         // Check that high1 is consistent with res6 and carry
         cs.enforce(
@@ -598,39 +618,19 @@ where
         let r_low_scalar = r_low_u128.map(|x| Scalar::from_u128(x));
         let r_high_scalar = r_high_u128.map(|x| Scalar::from_u128(x));
 
-        let q_low =
-            AllocatedNum::alloc(
-                cs.namespace(|| "alloc quotient low limb"),
-                || match q_low_scalar {
-                    Some(s) => Ok(s),
-                    None => Err(SynthesisError::AssignmentMissing),
-                },
-            )?;
-        let q_high =
-            AllocatedNum::alloc(
-                cs.namespace(|| "alloc quotient high limb"),
-                || match q_high_scalar {
-                    Some(s) => Ok(s),
-                    None => Err(SynthesisError::AssignmentMissing),
-                },
-            )?;
+        let q_low = AllocatedNum::alloc(cs.namespace(|| "alloc quotient low limb"), || {
+            q_low_scalar.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let q_high = AllocatedNum::alloc(cs.namespace(|| "alloc quotient high limb"), || {
+            q_high_scalar.ok_or(SynthesisError::AssignmentMissing)
+        })?;
 
-        let r_low =
-            AllocatedNum::alloc(
-                cs.namespace(|| "alloc remainder low limb"),
-                || match r_low_scalar {
-                    Some(s) => Ok(s),
-                    None => Err(SynthesisError::AssignmentMissing),
-                },
-            )?;
-        let r_high =
-            AllocatedNum::alloc(
-                cs.namespace(|| "alloc remainder high limb"),
-                || match r_high_scalar {
-                    Some(s) => Ok(s),
-                    None => Err(SynthesisError::AssignmentMissing),
-                },
-            )?;
+        let r_low = AllocatedNum::alloc(cs.namespace(|| "alloc remainder low limb"), || {
+            r_low_scalar.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        let r_high = AllocatedNum::alloc(cs.namespace(|| "alloc remainder high limb"), || {
+            r_high_scalar.ok_or(SynthesisError::AssignmentMissing)
+        })?;
 
         let quotient = Uint256 {
             low: q_low,
@@ -759,6 +759,35 @@ mod tests {
     }
 
     #[test]
+    fn test_uint256_to_fe() {
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+
+        let mut cs = TestConstraintSystem::<Fp>::new();
+
+        for i in 0..16 {
+            let fe_val = Fp::random(&mut rng);
+            let fe = AllocatedNum::alloc(cs.namespace(|| format!("alloc fe {i}")), || Ok(fe_val));
+            assert!(fe.is_ok());
+
+            let u = Uint256::field_element_to_uint256(
+                cs.namespace(|| format!("uint256 {i}")),
+                &fe.unwrap(),
+            );
+            assert!(u.is_ok());
+
+            let fe_rt = u.as_ref().unwrap().uint256_to_field_element_unchecked(
+                cs.namespace(|| format!("alloc round-trip fe {i}")),
+            );
+            assert!(fe_rt.is_ok());
+
+            assert_eq!(fe_rt.unwrap().get_value().unwrap(), fe_val);
+        }
+    }
+
+    #[test]
     fn test_less_than() {
         let mut rng = XorShiftRng::from_seed([
             0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
@@ -818,6 +847,71 @@ mod tests {
         assert!(cs.is_satisfied());
     }
 
+    #[test]
+    fn test_less_than_or_equal() {
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+
+        let mut cs = TestConstraintSystem::<Fp>::new();
+
+        for i in 0..16 {
+            let a_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
+            let a_high: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
+            let b_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
+            let b_high: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
+
+            // Unlikely that a_high == b_high, in which case we have to compare a_low and b_low
+            let (a_low, a_high, b_low, b_high) = if a_high <= b_high {
+                (a_low, a_high, b_low, b_high)
+            } else {
+                (b_low, b_high, a_low, a_high)
+            };
+
+            let a_low_scalar = Fp::from_u128(a_low);
+            let a_high_scalar = Fp::from_u128(a_high);
+            let b_low_scalar = Fp::from_u128(b_low);
+            let b_high_scalar = Fp::from_u128(b_high);
+
+            let a_low = AllocatedNum::alloc(cs.namespace(|| format!("alloc a low {i}")), || {
+                Ok(a_low_scalar)
+            });
+            let a_high = AllocatedNum::alloc(cs.namespace(|| format!("alloc a high {i}")), || {
+                Ok(a_high_scalar)
+            });
+            let b_low = AllocatedNum::alloc(cs.namespace(|| format!("alloc b low {i}")), || {
+                Ok(b_low_scalar)
+            });
+            let b_high = AllocatedNum::alloc(cs.namespace(|| format!("alloc b high {i}")), || {
+                Ok(b_high_scalar)
+            });
+
+            // value is not checked in less_than_or_equal
+            let a = Uint256 {
+                low: a_low.unwrap(),
+                high: a_high.unwrap(),
+                value: None,
+            };
+            let b = Uint256 {
+                low: b_low.unwrap(),
+                high: b_high.unwrap(),
+                value: None,
+            };
+
+            let res =
+                Uint256::less_than_or_equal(cs.namespace(|| format!("check a <= b {i}")), &a, &b);
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().get_value().unwrap(), true);
+
+            let res =
+                Uint256::less_than_or_equal(cs.namespace(|| format!("check a <= a {i}")), &a, &a);
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().get_value().unwrap(), true);
+        }
+
+        assert!(cs.is_satisfied());
+    }
     #[test]
     fn test_enforce_equal() {
         let mut rng = XorShiftRng::from_seed([
