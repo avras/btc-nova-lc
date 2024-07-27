@@ -172,7 +172,10 @@ where
         |lc| lc + expected_target.get_variable(),
     );
 
-    let unshifted_mask = alloc_constant(cs.namespace(||"alloc unshifted mask"), Scalar::from(MANTISSA_MASK))?;
+    let unshifted_mask = alloc_constant(
+        cs.namespace(|| "alloc unshifted mask"),
+        Scalar::from(MANTISSA_MASK),
+    )?;
     let mask = unshifted_mask.mul(cs.namespace(|| "unshifted mask * multiplier"), &multiplier)?;
 
     Ok((expected_target, mask))
@@ -304,4 +307,168 @@ where
     )?;
 
     Ok(new_target)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bellpepper_core::test_cs::TestConstraintSystem;
+    use ff::PrimeField;
+    use pasta_curves::Fp;
+
+    fn target_scalar_from_u32(t: u32) -> Fp {
+        let t_be_bytes = u32::to_be_bytes(t);
+        assert!(t_be_bytes[0] >= 3u8);
+
+        let exponent = t_be_bytes[0] - 3u8;
+
+        let base = Fp::from(256);
+        let mantissa = Fp::from(t_be_bytes[1] as u64) * base.square()
+            + Fp::from(t_be_bytes[2] as u64) * base
+            + Fp::from(t_be_bytes[3] as u64);
+
+        let mut s = mantissa;
+        for _i in 0..exponent {
+            s = s * base;
+        }
+        s
+    }
+
+    #[test]
+    fn test_nbits_to_target() {
+        let mut cs = TestConstraintSystem::<Fp>::new();
+
+        // nbits values from blocks 0, 100k, 200k, ..., 800k
+        let max_nbits_vec: Vec<u32> = vec![
+            0x1D00FFFF, 0x1B04864C, 0x1A05DB8B, 0x1900896C, 0x1806B99F, 0x18009645, 0x1715A35C,
+            0x170F48E4, 0x17053894,
+        ];
+
+        let _ = max_nbits_vec.into_iter().enumerate().map(|(j, nbits_u32)| {
+            let max_nbits_le_bytes = u32::to_le_bytes(nbits_u32);
+            let max_nbits_bits_le = max_nbits_le_bytes
+                .iter()
+                .flat_map(|b| {
+                    (0..8)
+                        .rev()
+                        .map(|i| b & (1 << i) == (1 << i))
+                        .collect::<Vec<bool>>()
+                })
+                .collect::<Vec<bool>>();
+
+            let max_nbits_boolean_vec = max_nbits_bits_le
+                .iter()
+                .enumerate()
+                .map(|(i, b)| {
+                    Boolean::from(
+                        AllocatedBit::alloc(cs.namespace(|| format!("bit {j} {i}")), Some(*b))
+                            .unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let res = nbits_to_target(
+                cs.namespace(|| format!("alloc target {j}")),
+                &max_nbits_boolean_vec,
+            );
+            assert!(res.is_ok());
+
+            let (target, _) = res.unwrap();
+            let expected_target_value = target_scalar_from_u32(nbits_u32);
+            assert_eq!(target.get_value().unwrap(), expected_target_value);
+        });
+
+        assert!(cs.is_satisfied())
+    }
+
+    #[test]
+    fn test_calc_new_target() {
+        let mut cs = TestConstraintSystem::<Fp>::new();
+
+        let test_cases = vec![
+            (
+                // block 2016
+                "26959535291011309493156476344723991336010898738574164086137773096960",
+                "1231006505",
+                "1233061996",
+                "26959535291011309493156476344723991336010898738574164086137773096960",
+            ),
+            (
+                // block 90720
+                "8719867261221084516486306056196045840260667577454435863762042880",
+                "1288479527",
+                "1289303926",
+                "5942997561411541711563156602531385577600077786198627208704997014",
+            ),
+            (
+                // block 92736
+                "5942996718418989293499865695368015163438891473576991811912597504",
+                "1289305768",
+                "1290104845",
+                "3926018509229572344313816286588613965571477415700629866143917555",
+            ),
+            (
+                // block 94752
+                "3926013280397599483741094494745234959951218212740030386090803200",
+                "1290105874",
+                "1291134100",
+                "3337325505332425700040650320729095537310516946108490809993884103",
+            ),
+            (
+                // block 96768
+                "3337321571246095014985518819479127172783474909736415373333364736",
+                "1291135075",
+                "1291932610",
+                "2200422254731939804709388022233205762025354383380152145148334197",
+            ),
+            (
+                // block 98784
+                "2200419182034594781720344474937177839165432393990533906392154112",
+                "1291933202",
+                "1292956393",
+                "1861317049673577272902795125376526066826651733332976503154178702",
+            ),
+        ];
+
+        for i in 0..test_cases.len() {
+            let (old_target, epoch_start_ts, epoch_end_ts, new_target) = test_cases[i];
+
+            let old_target = alloc_constant(
+                cs.namespace(|| format!("alloc old target {i}")),
+                Fp::from_str_vartime(&old_target).unwrap(),
+            )
+            .unwrap();
+            let new_target = alloc_constant(
+                cs.namespace(|| format!("alloc new target {i}")),
+                Fp::from_str_vartime(&new_target).unwrap(),
+            )
+            .unwrap();
+            let epoch_start_ts = alloc_constant(
+                cs.namespace(|| format!("alloc epoch start {i}")),
+                Fp::from_str_vartime(&epoch_start_ts).unwrap(),
+            )
+            .unwrap();
+            let epoch_end_ts = alloc_constant(
+                cs.namespace(|| format!("alloc epoch end {i}")),
+                Fp::from_str_vartime(&epoch_end_ts).unwrap(),
+            )
+            .unwrap();
+
+            let res = calc_new_target(
+                cs.namespace(|| format!("calculate new target {i}")),
+                &old_target,
+                &epoch_start_ts,
+                &epoch_end_ts,
+            );
+            assert!(res.is_ok());
+
+            let calc_new_target = res.unwrap();
+            assert_eq!(
+                calc_new_target.get_value().unwrap(),
+                new_target.get_value().unwrap()
+            );
+        }
+
+        assert!(cs.is_satisfied());
+    }
 }
