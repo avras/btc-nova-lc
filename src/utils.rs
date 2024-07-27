@@ -198,19 +198,17 @@ where
                 |(acc, coeff), b| match b.get_value() {
                     Some(b_val) => {
                         if b_val {
-                            acc.map(|a| a + coeff)
+                            (acc.map(|a| a + coeff), coeff.double())
                         } else {
-                            acc
-                        };
-                        (acc, coeff.double())
+                            (acc, coeff.double())
+                        }
                     }
                     None => (None, coeff.double()),
                 },
             );
 
-    let num = AllocatedNum::alloc(cs.namespace(|| "alloc num"), || match num_value {
-        Some(v) => Ok(v),
-        None => Err(SynthesisError::AssignmentMissing),
+    let num = AllocatedNum::alloc(cs.namespace(|| "alloc num"), || {
+        num_value.ok_or(SynthesisError::AssignmentMissing)
     })?;
 
     cs.enforce(
