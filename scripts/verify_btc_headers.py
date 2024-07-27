@@ -93,7 +93,7 @@ def verify_headers(filename, num_headers):
         "height_mod_2016": 0,
         "prev_block_target": nbits_to_target(MAX_TARGET_BYTES),
         "prev_block_timestamp": 0,
-        "epoch_start_timestamp": 0,
+        "epoch_start_timestamp": 1231006505,
         "prev_timestamps": [0]*11,
         "prev_blockhash": bytes(),
     }
