@@ -20,6 +20,20 @@ impl<Scalar> Uint256<Scalar>
 where
     Scalar: PrimeFieldBits,
 {
+    pub(crate) fn one<CS>(mut cs: CS) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<Scalar>,
+    {
+        let one_fe = alloc_constant(cs.namespace(|| "alloc one"), Scalar::ONE)?;
+        let zero_fe = alloc_constant(cs.namespace(|| "alloc zero"), Scalar::ZERO)?;
+
+        Ok(Self {
+            low: one_fe,
+            high: zero_fe,
+            value: Some(BigUint::from(1u8)),
+        })
+    }
+
     /// Check that the representation of the integer is correct
     pub(crate) fn check_limbs<CS>(&self, mut cs: CS) -> Result<(), SynthesisError>
     where

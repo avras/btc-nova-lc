@@ -5,6 +5,7 @@ use bellpepper_core::{
     ConstraintSystem, SynthesisError,
 };
 use ff::PrimeFieldBits;
+use num_bigint::BigUint;
 
 use crate::{
     uint256::Uint256,
@@ -29,6 +30,11 @@ const EXPECTED_EPOCH_TIMESPAN: u64 = 14 * 24 * 3600;
 const MAX_TARGET_DECIMAL_STR: &str =
     "26959535291011309493156476344723991336010898738574164086137773096960";
 
+/// Converts a length 32 Boolean vector representing the nBits field
+/// as little-endian bytes into a pair of allocated field elements.
+/// The first field element is the target threshold and the second
+/// element is the mask which will be used to check for equality
+/// with the calculated target.
 pub(crate) fn nbits_to_target<Scalar, CS>(
     mut cs: CS,
     nbits: &Vec<Boolean>,
@@ -181,6 +187,11 @@ where
     Ok((expected_target, mask))
 }
 
+/// Calculates the new target from the old target, the epoch start time,
+/// and the epoch end time. This calculation happens at blocks whose
+/// height is divisible by 2016. The epoch start time is the timestamp
+/// in the previous block whose height is divisible by 2016. The epoch
+/// end time is the timestamp of the predecessor block.
 pub(crate) fn calc_new_target<Scalar, CS>(
     mut cs: CS,
     old_target: &AllocatedNum<Scalar>,
@@ -307,6 +318,94 @@ where
     )?;
 
     Ok(new_target)
+}
+
+/// Verifies that the nBits fields in the current block header is
+/// consistent with the recalculated target. Returns the target which
+/// is calculated from the nBits field.
+pub(crate) fn verify_target<Scalar, CS>(
+    mut cs: CS,
+    nbits: &Vec<Boolean>,
+    old_target: &AllocatedNum<Scalar>,
+    epoch_start_time: &AllocatedNum<Scalar>,
+    epoch_end_time: &AllocatedNum<Scalar>,
+) -> Result<AllocatedNum<Scalar>, SynthesisError>
+where
+    Scalar: PrimeFieldBits,
+    CS: ConstraintSystem<Scalar>,
+{
+    let (expected_target, mask) =
+        nbits_to_target(cs.namespace(|| "convert nbits to target and mask"), nbits)?;
+    let calculated_target = calc_new_target(
+        cs.namespace(|| "calculate target"),
+        old_target,
+        epoch_start_time,
+        epoch_end_time,
+    )?;
+
+    let expected_target_bits =
+        expected_target.to_bits_le(cs.namespace(|| "get expected target bits"))?;
+    let mask_bits = mask.to_bits_le(cs.namespace(|| "get mask bits"))?;
+    let calculated_target_bits =
+        calculated_target.to_bits_le(cs.namespace(|| "get calculated target bits"))?;
+
+    for i in 0..mask_bits.len() {
+        let masked_calculated_target_bit = Boolean::and(
+            cs.namespace(|| format!("mask {i} AND calc target bit {i}")),
+            &mask_bits[i],
+            &calculated_target_bits[i],
+        )?;
+        Boolean::enforce_equal(
+            cs.namespace(|| format!("check target bits equality {i}")),
+            &masked_calculated_target_bit,
+            &expected_target_bits[i],
+        )?;
+    }
+
+    Ok(expected_target)
+}
+// Logic from https://github.com/bitcoin/bitcoin/blob/v0.16.2/src/chain.cpp#L121
+/// Compute accumulated chainwork as old_chainwork + ~target(target + 1) + 1
+pub(crate) fn accumulate_chainwork<Scalar, CS>(
+    mut cs: CS,
+    old_chainwork: &AllocatedNum<Scalar>,
+    target: &AllocatedNum<Scalar>,
+) -> Result<AllocatedNum<Scalar>, SynthesisError>
+where
+    Scalar: PrimeFieldBits,
+    CS: ConstraintSystem<Scalar>,
+{
+    let target_uint256 =
+        Uint256::field_element_to_uint256(cs.namespace(|| "alloc target as uint256"), target)?;
+
+    let one_uint256 = Uint256::one(cs.namespace(|| "alloc one"))?;
+
+    let not_target_uint256 = target_uint256.not(cs.namespace(|| "bitwise not of target"))?;
+    let (target_uint256_plus_one, _) = Uint256::add(
+        cs.namespace(|| "add one to target"),
+        &target_uint256,
+        &one_uint256,
+    )?;
+
+    let (ratio_uint256, _) = Uint256::unsigned_div_rem(
+        cs.namespace(|| "~(target) div (target+1)"),
+        &not_target_uint256,
+        &target_uint256_plus_one,
+    )?;
+    let (ratio_plus_one_uint256, _) = Uint256::add(
+        cs.namespace(|| "add one to ratio"),
+        &ratio_uint256,
+        &one_uint256,
+    )?;
+
+    let block_work = ratio_plus_one_uint256
+        .uint256_to_field_element_unchecked(cs.namespace(|| "get block work field element"))?;
+    let chainwork = old_chainwork.add(
+        cs.namespace(|| "add block work to old chain work"),
+        &block_work,
+    )?;
+
+    Ok(chainwork)
 }
 
 #[cfg(test)]
@@ -469,6 +568,55 @@ mod tests {
             );
         }
 
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn test_accumulate_chainwork() {
+        let mut cs = TestConstraintSystem::<Fp>::new();
+        let test_cases = vec![
+            (0x0u128, 0x1d00ffffu32, 0x100010001u128), // block 0
+            (0x7dff7dff7dffu128, 0x1d00ffffu32, 0x7e007e007e00u128), // block 32255
+            (0x7e007e007e00u128, 0x1d00d86au32, 0x7e01acd42dd2u128), // block 32256
+            (0x6445a568dea41a2u128, 0x1b04864cu32, 0x64492eaf00f2520u128), // block 99999
+        ];
+        for i in 0..test_cases.len() {
+            let (old_chainwork, target, new_chainwork) = test_cases[i];
+
+            let res = alloc_constant(
+                cs.namespace(|| format!("alloc old chainwork {i}")),
+                Fp::from_u128(old_chainwork),
+            );
+            assert!(res.is_ok());
+            let old_chainwork = res.unwrap();
+
+            let res = alloc_constant(
+                cs.namespace(|| format!("alloc target {i}")),
+                target_scalar_from_u32(target),
+            );
+            assert!(res.is_ok());
+            let target = res.unwrap();
+
+            let res = alloc_constant(
+                cs.namespace(|| format!("alloc new chainwork {i}")),
+                Fp::from_u128(new_chainwork),
+            );
+            assert!(res.is_ok());
+            let new_chainwork = res.unwrap();
+
+            let res = accumulate_chainwork(
+                cs.namespace(|| format!("accumulate chainwork {i}")),
+                &old_chainwork,
+                &target,
+            );
+            assert!(res.is_ok());
+            let calculated_new_chainwork = res.unwrap();
+
+            assert_eq!(
+                new_chainwork.get_value().unwrap(),
+                calculated_new_chainwork.get_value().unwrap()
+            );
+        }
         assert!(cs.is_satisfied());
     }
 }
