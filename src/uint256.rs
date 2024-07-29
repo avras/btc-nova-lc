@@ -717,8 +717,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let low_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let high_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let low_scalar = Fp::from_u128(low_val);
@@ -742,6 +743,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 256 * num_tests);
     }
 
     #[test]
@@ -752,8 +754,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let fe_val = Fp::random(&mut rng);
             let fe = AllocatedNum::alloc(cs.namespace(|| format!("alloc fe {i}")), || Ok(fe_val));
             assert!(fe.is_ok());
@@ -770,6 +773,8 @@ mod tests {
             let u_val = u.low.get_value().unwrap() + u.high.get_value().unwrap() * pow128;
             assert_eq!(u_val, fe_val);
         }
+        assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 303 * num_tests);
     }
 
     #[test]
@@ -780,8 +785,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let fe_val = Fp::random(&mut rng);
             let fe = AllocatedNum::alloc(cs.namespace(|| format!("alloc fe {i}")), || Ok(fe_val));
             assert!(fe.is_ok());
@@ -799,6 +805,8 @@ mod tests {
 
             assert_eq!(fe_rt.unwrap().get_value().unwrap(), fe_val);
         }
+        assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 305 * num_tests);
     }
 
     #[test]
@@ -809,8 +817,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let a_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let a_high: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let b_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
@@ -859,6 +868,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 521 * num_tests);
     }
 
     #[test]
@@ -869,8 +879,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let a_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let a_high: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let b_low: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
@@ -925,6 +936,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 521 * 2 * num_tests);
     }
     #[test]
     fn test_enforce_equal() {
@@ -934,8 +946,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let low_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let high_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let low_scalar = Fp::from_u128(low_val);
@@ -960,6 +973,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 2 * num_tests);
     }
 
     #[test]
@@ -980,6 +994,7 @@ mod tests {
         assert!(res.is_ok());
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 2);
     }
 
     #[test]
@@ -990,8 +1005,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let low_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let high_val: u128 = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
             let low_scalar = Fp::from_u128(low_val);
@@ -1024,6 +1040,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 2 * num_tests);
     }
 
     #[test]
@@ -1034,8 +1051,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let a_bytes: [u8; 32] = rng.gen();
             let b_bytes: [u8; 32] = rng.gen();
 
@@ -1105,6 +1123,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 260 * num_tests);
     }
 
     #[test]
@@ -1115,8 +1134,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let a_bytes: [u8; 32] = rng.gen();
             let b_bytes: [u8; 32] = rng.gen();
 
@@ -1187,6 +1207,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 2884 * num_tests);
     }
 
     #[test]
@@ -1197,8 +1218,9 @@ mod tests {
         ]);
 
         let mut cs = TestConstraintSystem::<Fp>::new();
+        let num_tests = 16;
 
-        for i in 0..16 {
+        for i in 0..num_tests {
             let a_bytes: [u8; 32] = rng.gen();
             let div_bytes: [u8; 32] = rng.gen();
 
@@ -1281,5 +1303,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 4183 * num_tests);
     }
 }

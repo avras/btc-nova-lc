@@ -441,8 +441,8 @@ mod tests {
             0x170F48E4, 0x17053894,
         ];
 
-        let _ = max_nbits_vec.into_iter().enumerate().map(|(j, nbits_u32)| {
-            let max_nbits_le_bytes = u32::to_le_bytes(nbits_u32);
+        for j in 0..max_nbits_vec.len() {
+            let max_nbits_le_bytes = u32::to_le_bytes(max_nbits_vec[j]);
             let max_nbits_bits_le = max_nbits_le_bytes
                 .iter()
                 .flat_map(|b| {
@@ -471,11 +471,12 @@ mod tests {
             assert!(res.is_ok());
 
             let (target, _) = res.unwrap();
-            let expected_target_value = target_scalar_from_u32(nbits_u32);
+            let expected_target_value = target_scalar_from_u32(max_nbits_vec[j]);
             assert_eq!(target.get_value().unwrap(), expected_target_value);
-        });
+        }
 
-        assert!(cs.is_satisfied())
+        assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 76 * max_nbits_vec.len());
     }
 
     #[test]
@@ -567,6 +568,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 9425 * test_cases.len());
     }
 
     #[test]
@@ -615,6 +617,8 @@ mod tests {
                 calculated_new_chainwork.get_value().unwrap()
             );
         }
+
         assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 5016 * test_cases.len());
     }
 }
