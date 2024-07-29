@@ -7,9 +7,12 @@ edition = "2021"
 bellpepper = { version = "0.4.1", default-features = false }
 bellpepper-core = { version = "0.4.0", default-features = false }
 ff = "0.13.0"
+nova-snark = "0.37.0"
 num-bigint = "0.4.6"
 
 [dev-dependencies]
+clap = "4.5.11"
+hex = "0.4.3"
 pasta_curves = "0.5.1"
 rand = "0.8.5"
 rand_core = "0.6.4"
