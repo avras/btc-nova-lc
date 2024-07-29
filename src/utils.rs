@@ -273,6 +273,25 @@ where
     Ok(offset_diff_bits[n_bits].not())
 }
 
+/// Takes two allocated numbers (a, b) that are assumed
+/// to be in the range `0` to `(1 << n_bits) - 1`.
+/// Returns an allocated `Boolean`` variable with value `true`
+/// if the `a` and `b` are such that a is less than or equal to b,
+/// `false` otherwise
+pub(crate) fn less_than_or_equal<Scalar, CS>(
+    mut cs: CS,
+    a: &AllocatedNum<Scalar>,
+    b: &AllocatedNum<Scalar>,
+    n_bits: usize,
+) -> Result<Boolean, SynthesisError>
+where
+    Scalar: PrimeFieldBits,
+    CS: ConstraintSystem<Scalar>,
+{
+    let is_b_lt_a = less_than(cs.namespace(|| "b < a"), b, a, n_bits)?;
+    Ok(is_b_lt_a.not())
+}
+
 // From Nova/src/gadgets/utils.rs
 /// If condition return a otherwise b
 pub(crate) fn conditionally_select<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
