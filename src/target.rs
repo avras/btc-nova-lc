@@ -1,11 +1,9 @@
-use bellpepper::gadgets::Assignment;
 use bellpepper_core::{
     boolean::{AllocatedBit, Boolean},
     num::AllocatedNum,
     ConstraintSystem, SynthesisError,
 };
 use ff::PrimeFieldBits;
-use num_bigint::BigUint;
 
 use crate::{
     uint256::Uint256,
