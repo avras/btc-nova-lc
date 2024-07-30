@@ -414,3 +414,22 @@ where
 
     Ok((a_low, a_high))
 }
+
+#[cfg(test)]
+pub(crate) fn target_scalar_from_u32<Scalar: PrimeField>(t: u32) -> Scalar {
+    let t_be_bytes = u32::to_be_bytes(t);
+    assert!(t_be_bytes[0] >= 3u8);
+
+    let exponent = t_be_bytes[0] - 3u8;
+
+    let base = Scalar::from(256);
+    let mantissa = Scalar::from(t_be_bytes[1] as u64) * base.square()
+        + Scalar::from(t_be_bytes[2] as u64) * base
+        + Scalar::from(t_be_bytes[3] as u64);
+
+    let mut s = mantissa;
+    for _i in 0..exponent {
+        s = s * base;
+    }
+    s
+}
