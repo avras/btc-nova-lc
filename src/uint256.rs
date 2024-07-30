@@ -165,8 +165,12 @@ where
     {
         let pow128 = Scalar::from_u128(u128::MAX) + Scalar::ONE;
 
-        let fe_val = *self.low.get_value().get()? + *self.high.get_value().get()? * pow128;
-        let fe = alloc_constant(cs.namespace(|| "alloc field element"), fe_val)?;
+        let fe = AllocatedNum::alloc(cs.namespace(|| "alloc field element"), || {
+            match (self.low.get_value(), self.high.get_value()) {
+                (Some(lv), Some(hv)) => Ok(lv + hv * pow128),
+                (_, _) => Err(SynthesisError::AssignmentMissing),
+            }
+        })?;
 
         cs.enforce(
             || "check field element value",
@@ -806,7 +810,7 @@ mod tests {
             assert_eq!(fe_rt.unwrap().get_value().unwrap(), fe_val);
         }
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 305 * num_tests);
+        assert_eq!(cs.num_constraints(), 304 * num_tests);
     }
 
     #[test]
