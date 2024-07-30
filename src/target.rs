@@ -223,6 +223,12 @@ where
         &epoch_duration,
         32,
     )?;
+    cs.enforce(
+        || "check epoch start + duration = end",
+        |lc| lc + epoch_start_time.get_variable() + epoch_duration.get_variable(),
+        |lc| lc + CS::one(),
+        |lc| lc + epoch_end_time.get_variable(),
+    );
 
     let max_epoch_duration = alloc_constant(
         cs.namespace(|| "alloc max epoch duration"),
@@ -318,50 +324,6 @@ where
     Ok(new_target)
 }
 
-/// Verifies that the nBits fields in the current block header is
-/// consistent with the recalculated target. Returns the target which
-/// is calculated from the nBits field.
-pub(crate) fn verify_target<Scalar, CS>(
-    mut cs: CS,
-    nbits: &Vec<Boolean>,
-    old_target: &AllocatedNum<Scalar>,
-    epoch_start_time: &AllocatedNum<Scalar>,
-    epoch_end_time: &AllocatedNum<Scalar>,
-) -> Result<AllocatedNum<Scalar>, SynthesisError>
-where
-    Scalar: PrimeFieldBits,
-    CS: ConstraintSystem<Scalar>,
-{
-    let (expected_target, mask) =
-        nbits_to_target(cs.namespace(|| "convert nbits to target and mask"), nbits)?;
-    let calculated_target = calc_new_target(
-        cs.namespace(|| "calculate target"),
-        old_target,
-        epoch_start_time,
-        epoch_end_time,
-    )?;
-
-    let expected_target_bits =
-        expected_target.to_bits_le(cs.namespace(|| "get expected target bits"))?;
-    let mask_bits = mask.to_bits_le(cs.namespace(|| "get mask bits"))?;
-    let calculated_target_bits =
-        calculated_target.to_bits_le(cs.namespace(|| "get calculated target bits"))?;
-
-    for i in 0..mask_bits.len() {
-        let masked_calculated_target_bit = Boolean::and(
-            cs.namespace(|| format!("mask {i} AND calc target bit {i}")),
-            &mask_bits[i],
-            &calculated_target_bits[i],
-        )?;
-        Boolean::enforce_equal(
-            cs.namespace(|| format!("check target bits equality {i}")),
-            &masked_calculated_target_bit,
-            &expected_target_bits[i],
-        )?;
-    }
-
-    Ok(expected_target)
-}
 // Logic from https://github.com/bitcoin/bitcoin/blob/v0.16.2/src/chain.cpp#L121
 /// Compute accumulated chainwork as old_chainwork + ~target(target + 1) + 1
 pub(crate) fn accumulate_chainwork<Scalar, CS>(
@@ -409,27 +371,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::target_scalar_from_u32;
     use bellpepper_core::test_cs::TestConstraintSystem;
     use ff::PrimeField;
     use pasta_curves::Fp;
-
-    fn target_scalar_from_u32(t: u32) -> Fp {
-        let t_be_bytes = u32::to_be_bytes(t);
-        assert!(t_be_bytes[0] >= 3u8);
-
-        let exponent = t_be_bytes[0] - 3u8;
-
-        let base = Fp::from(256);
-        let mantissa = Fp::from(t_be_bytes[1] as u64) * base.square()
-            + Fp::from(t_be_bytes[2] as u64) * base
-            + Fp::from(t_be_bytes[3] as u64);
-
-        let mut s = mantissa;
-        for _i in 0..exponent {
-            s = s * base;
-        }
-        s
-    }
 
     #[test]
     fn test_nbits_to_target() {
@@ -471,7 +416,7 @@ mod tests {
             assert!(res.is_ok());
 
             let (target, _) = res.unwrap();
-            let expected_target_value = target_scalar_from_u32(max_nbits_vec[j]);
+            let expected_target_value = target_scalar_from_u32::<Fp>(max_nbits_vec[j]);
             assert_eq!(target.get_value().unwrap(), expected_target_value);
         }
 
@@ -619,6 +564,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 5016 * test_cases.len());
+        assert_eq!(cs.num_constraints(), 5015 * test_cases.len());
     }
 }
