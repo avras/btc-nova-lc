@@ -41,7 +41,6 @@ pub fn alloc_num_equals<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
     let r = AllocatedBit::alloc(cs.namespace(|| "r"), r_value)?;
 
     // Allocate t s.t. t=1 if z1 == z2 else 1/(z1 - z2)
-
     let t = AllocatedNum::alloc(cs.namespace(|| "t"), || {
         match (a.get_value(), b.get_value()) {
             (Some(a_val), Some(b_val)) => {
@@ -66,6 +65,49 @@ pub fn alloc_num_equals<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
         || "r*(a - b) = 0",
         |lc| lc + r.get_variable(),
         |lc| lc + a.get_variable() - b.get_variable(),
+        |lc| lc,
+    );
+
+    Ok(Boolean::from(r))
+}
+
+/// Check that a number is equal to a constant and return a bit
+///
+/// Based on alloc_num_equals which is from Nova/src/gadgets/utils.rs
+pub fn alloc_num_equals_constant<Scalar: PrimeField, CS: ConstraintSystem<Scalar>>(
+    mut cs: CS,
+    a: &AllocatedNum<Scalar>,
+    b: Scalar,
+) -> Result<Boolean, SynthesisError> {
+    // Allocate and constrain `r`: result boolean bit.
+    // It equals `true` if `a` equals `b`, `false` otherwise
+    let r_value = a.get_value().map(|a_val| a_val == b);
+
+    let r = AllocatedBit::alloc(cs.namespace(|| "r"), r_value)?;
+
+    // Allocate t s.t. t=1 if z1 == z2 else 1/(z1 - z2)
+    let t = AllocatedNum::alloc(cs.namespace(|| "t"), || match a.get_value() {
+        Some(a_val) => {
+            if a_val == b {
+                Ok(Scalar::ONE)
+            } else {
+                Ok((a_val - b).invert().unwrap())
+            }
+        }
+        _ => Err(SynthesisError::AssignmentMissing),
+    })?;
+
+    cs.enforce(
+        || "t*(a - b) = 1 - r",
+        |lc| lc + t.get_variable(),
+        |lc| lc + a.get_variable() - (b, CS::one()),
+        |lc| lc + CS::one() - r.get_variable(),
+    );
+
+    cs.enforce(
+        || "r*(a - b) = 0",
+        |lc| lc + r.get_variable(),
+        |lc| lc + a.get_variable() - (b, CS::one()),
         |lc| lc,
     );
 
