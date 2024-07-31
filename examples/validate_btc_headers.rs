@@ -140,13 +140,22 @@ fn main() {
         )
         .unwrap();
 
+    let start = Instant::now();
     for (i, circuit_primary) in circuits.iter().enumerate() {
-        let start = Instant::now();
+        let step_start = Instant::now();
         let res = recursive_snark.prove_step(&pp, circuit_primary, &circuit_secondary);
         assert!(res.is_ok());
 
-        println!("RecursiveSNARK::prove {} : took {:?} ", i, start.elapsed());
+        println!(
+            "RecursiveSNARK::prove {} : took {:?} ",
+            i,
+            step_start.elapsed()
+        );
     }
+    println!(
+        "Total time taken by RecursiveSNARK::prove_steps: {:?}",
+        start.elapsed()
+    );
 
     // verify the recursive SNARK
     println!("Verifying a RecursiveSNARK...");
