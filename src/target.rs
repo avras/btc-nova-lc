@@ -306,7 +306,7 @@ where
     )?;
 
     let is_new_target_lte_max_target = Uint256::less_than_or_equal(
-        cs.namespace(|| "is new target "),
+        cs.namespace(|| "is new target <= max target"),
         &new_target_uint256,
         &max_target_uint256,
     )?;
