@@ -9,6 +9,7 @@ use nova_snark::traits::{circuit::StepCircuit, Group};
 use std::marker::PhantomData;
 
 use crate::{
+    median::verify_current_timestamp,
     target::{accumulate_chainwork, calc_new_target, nbits_to_target},
     utils::{
         alloc_constant, alloc_num_equals, alloc_num_equals_constant, conditionally_select,
@@ -317,6 +318,9 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             &blk_height_2016_multiple,
         )?;
 
+        let prev_timestamps = z[5..].to_vec();
+        verify_current_timestamp(cs, &current_timestamp, &prev_timestamps)?;
+
         let mut z_out = vec![
             height_plus_one,
             header_hash,
@@ -447,7 +451,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 93704);
+        assert_eq!(cs.num_constraints(), 97370);
     }
 
     #[test]
@@ -524,6 +528,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 93704);
+        assert_eq!(cs.num_constraints(), 97370);
     }
 }
