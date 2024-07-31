@@ -4,15 +4,15 @@ use bellpepper_core::{
     num::AllocatedNum,
     ConstraintSystem, SynthesisError,
 };
-use ff::Field;
+use ff::{Field, PrimeFieldBits};
 use nova_snark::traits::{circuit::StepCircuit, Group};
 use std::marker::PhantomData;
 
 use crate::{
     target::{accumulate_chainwork, calc_new_target, nbits_to_target},
     utils::{
-        alloc_constant, alloc_num_equals, conditionally_select, le_bytes_to_alloc_num,
-        less_than_or_equal,
+        alloc_constant, alloc_num_equals, conditionally_select, le_bytes_to_alloc_num, less_than,
+        less_than_or_equal, range_check_num,
     },
 };
 
@@ -21,6 +21,83 @@ const HEADER_LENGTH_BYTES: usize = 80;
 const STEP_FUNCTION_ARITY: usize = 16;
 const NUM_BLOCKS_IN_EPOCH: u64 = 2016;
 const GENESIS_BLOCK_TIMESTAMP: u64 = 1231006505u64;
+
+fn height_mod_2016<Scalar, CS>(
+    mut cs: CS,
+    height: &AllocatedNum<Scalar>,
+) -> Result<AllocatedNum<Scalar>, SynthesisError>
+where
+    Scalar: PrimeFieldBits,
+    CS: ConstraintSystem<Scalar>,
+{
+    let val_2016 = Scalar::from(NUM_BLOCKS_IN_EPOCH);
+    let num_blocks_in_epoch = alloc_constant(cs.namespace(|| "alloc 2016"), val_2016)?;
+
+    // Will work as long as height < 16,777,216
+    range_check_num(
+        cs.namespace(|| "check that height fits in 24 bits"),
+        &height,
+        24,
+    )?;
+
+    let height_u64 = height.get_value().map(|h| {
+        let mut h_val = 0u64;
+        let mut coeff = 1u64;
+        let h_bits = h.to_le_bits();
+        for i in 0..24 {
+            if h_bits[i] {
+                h_val += coeff;
+            }
+            coeff = 2 * coeff;
+        }
+        h_val
+    });
+
+    let quotient_u64 = height_u64.map(|h| h / NUM_BLOCKS_IN_EPOCH);
+    let remainder_u64 = height_u64.map(|h| h % NUM_BLOCKS_IN_EPOCH);
+    let quotient_scalar = quotient_u64.map(Scalar::from);
+    let remainder_scalar = remainder_u64.map(Scalar::from);
+
+    let quotient = AllocatedNum::alloc(cs.namespace(|| "alloc quotient"), || {
+        quotient_scalar.ok_or(SynthesisError::AssignmentMissing)
+    })?;
+    let remainder = AllocatedNum::alloc(cs.namespace(|| "alloc remainder"), || {
+        remainder_scalar.ok_or(SynthesisError::AssignmentMissing)
+    })?;
+
+    // height fits in 24 bits and 2016 fits in 11 bits. So quotient fits in 13 bits
+    range_check_num(
+        cs.namespace(|| "check that quotient fits in 13 bits"),
+        &quotient,
+        13,
+    )?;
+    range_check_num(
+        cs.namespace(|| "check that remainder fits in 11 bits"),
+        &remainder,
+        11,
+    )?;
+
+    let rem_lt_2016 = less_than(
+        cs.namespace(|| "check remainder < 2016"),
+        &remainder,
+        &num_blocks_in_epoch,
+        11,
+    )?;
+    Boolean::enforce_equal(
+        cs.namespace(|| "remainder < 2016 == true"),
+        &rem_lt_2016,
+        &Boolean::Constant(true),
+    )?;
+
+    cs.enforce(
+        || "quotient * 2016 + remainder == height",
+        |lc| lc + (val_2016, quotient.get_variable()) + remainder.get_variable(),
+        |lc| lc + CS::one(),
+        |lc| lc + height.get_variable(),
+    );
+
+    Ok(remainder)
+}
 
 #[derive(Clone, Debug)]
 pub struct BitcoinHeaderCircuit<G: Group> {
@@ -261,6 +338,34 @@ mod tests {
     use ff::PrimeField;
     use nova_snark::{provider::VestaEngine, traits::Engine};
     use pasta_curves::Fp;
+
+    #[test]
+    fn test_height_mod_2016() {
+        let mut cs = TestConstraintSystem::<Fp>::new();
+        let test_cases = [0u64, 1, 2016, 2017, 4032, 4033];
+
+        for i in 0..test_cases.len() {
+            let res = AllocatedNum::alloc(cs.namespace(|| format!("alloc height {i}")), || {
+                Ok(Fp::from(test_cases[i]))
+            });
+            assert!(res.is_ok());
+            let height = res.unwrap();
+
+            let res = height_mod_2016(
+                cs.namespace(|| format!("alloc height modulo 2016 {i}")),
+                &height,
+            );
+            assert!(res.is_ok());
+            let height_mod_2016 = res.unwrap();
+
+            assert_eq!(
+                height_mod_2016.get_value().unwrap(),
+                Fp::from(test_cases[i] % NUM_BLOCKS_IN_EPOCH)
+            );
+        }
+        assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 309 * test_cases.len());
+    }
 
     fn le_bytes_to_scalar(bytes: &Vec<u8>) -> Fp {
         assert!(bytes.len() * 8 < Fp::CAPACITY as usize);
