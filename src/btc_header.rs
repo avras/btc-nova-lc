@@ -11,8 +11,8 @@ use std::marker::PhantomData;
 use crate::{
     target::{accumulate_chainwork, calc_new_target, nbits_to_target},
     utils::{
-        alloc_constant, alloc_num_equals, conditionally_select, le_bytes_to_alloc_num, less_than,
-        less_than_or_equal, range_check_num,
+        alloc_constant, alloc_num_equals, alloc_num_equals_constant, conditionally_select,
+        le_bytes_to_alloc_num, less_than, less_than_or_equal, range_check_num,
     },
 };
 
@@ -20,9 +20,8 @@ const HEADER_LENGTH_BITS: usize = 640;
 const HEADER_LENGTH_BYTES: usize = 80;
 const STEP_FUNCTION_ARITY: usize = 16;
 const NUM_BLOCKS_IN_EPOCH: u64 = 2016;
-const GENESIS_BLOCK_TIMESTAMP: u64 = 1231006505u64;
 
-fn height_mod_2016<Scalar, CS>(
+fn height_modulo_2016<Scalar, CS>(
     mut cs: CS,
     height: &AllocatedNum<Scalar>,
 ) -> Result<AllocatedNum<Scalar>, SynthesisError>
@@ -135,18 +134,14 @@ impl<G: Group> BitcoinHeaderCircuit<G> {
     }
 
     pub fn initial_step_function_inputs() -> Vec<G::Scalar> {
-        let mut inputs = vec![];
-        inputs.push(G::Scalar::ZERO); // Block height modulo 2016
-        inputs.push(G::Scalar::ZERO); // Previous block hash (for the genesis block it is defined as all zeros)
-        inputs.push(G::Scalar::ZERO); // Accumulated chain work
-        inputs.push(G::Scalar::ZERO); // Previous block target (for the genesis block it is not defined)
-        inputs.push(G::Scalar::from(GENESIS_BLOCK_TIMESTAMP)); // Epoch start timestamp (value is block 0's timestamp)
-        inputs.push(G::Scalar::from(GENESIS_BLOCK_TIMESTAMP)); // Previous block timestamp. We set it to the genesis block
-                                                               // timestamp to make it at least as large as the epoch start timestamp
-        inputs.extend_from_slice(&[G::Scalar::ZERO; 10]); // Timestamps of 10 previous block (most recent block first)
-
-        assert_eq!(inputs.len(), STEP_FUNCTION_ARITY);
-        inputs
+        let z = vec![G::Scalar::ZERO; STEP_FUNCTION_ARITY];
+        // z[0]  Block height
+        // z[1]  Previous block hash (for the genesis block it is defined as all zeros)
+        // z[2]  Accumulated chain work
+        // z[3]  Previous block target (for the genesis block it is not defined)
+        // z[4]  Epoch start timestamp (for the genesis block it is not defined)
+        // z[5..16] Timestamps of 11 previous block (most recent block first)
+        z
     }
 }
 
@@ -163,6 +158,23 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
     where
         CS: ConstraintSystem<G::Scalar>,
     {
+        let height = &z[0];
+        let is_genesis_block =
+            alloc_num_equals_constant(cs.namespace(|| "is height == 0"), height, G::Scalar::ZERO)?;
+
+        let height_plus_one = AllocatedNum::alloc(cs.namespace(|| "alloc h+1"), || {
+            height
+                .get_value()
+                .map(|h| h + G::Scalar::ONE)
+                .ok_or(SynthesisError::AssignmentMissing)
+        })?;
+        cs.enforce(
+            || "check updated height",
+            |lc| lc + height.get_variable() + CS::one(),
+            |lc| lc + CS::one(),
+            |lc| lc + height_plus_one.get_variable(),
+        );
+
         let header_bits: Vec<Boolean> = self
             .header
             .into_iter()
@@ -225,26 +237,11 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             &Boolean::Constant(true),
         )?;
 
-        let height_mod_2016 = &z[0];
-        let num_blocks_in_epoch = alloc_constant(
-            cs.namespace(|| "alloc 2016"),
-            G::Scalar::from(NUM_BLOCKS_IN_EPOCH),
-        )?;
-        let blk_height_2016_multiple = alloc_num_equals(
+        let height_mod_2016 = height_modulo_2016(cs.namespace(|| "alloc height mod 2016"), height)?;
+        let blk_height_2016_multiple = alloc_num_equals_constant(
             cs.namespace(|| "is block height a multiple of 2016"),
             &height_mod_2016,
-            &num_blocks_in_epoch,
-        )?;
-
-        let one = alloc_constant(cs.namespace(|| "alloc 1"), G::Scalar::ONE)?;
-        let height_mod_2016_plus_one =
-            height_mod_2016.add(cs.namespace(|| "increment height mod 2016"), &one)?;
-
-        let next_height_mod_2016 = conditionally_select(
-            cs.namespace(|| "choose between h+1 and 1"),
-            &one,
-            &height_mod_2016_plus_one,
-            &blk_height_2016_multiple,
+            G::Scalar::ZERO,
         )?;
 
         let chain_work =
@@ -297,10 +294,15 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             )?;
         }
 
+        let no_target_update = Boolean::or(
+            cs.namespace(|| "either height == 0 or height mod 2016 != 0"),
+            &is_genesis_block,
+            &blk_height_2016_multiple.not(),
+        )?;
         let all_bits_equal_or_no_update = Boolean::or(
             cs.namespace(|| format!("Either all masked bits match OR block height % 2016 != 0")),
             &all_bits_equal,
-            &blk_height_2016_multiple.not(),
+            &no_target_update,
         )?;
         Boolean::enforce_equal(
             cs.namespace(|| "Enforce target update is correct"),
@@ -316,7 +318,7 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
         )?;
 
         let mut z_out = vec![
-            next_height_mod_2016,
+            height_plus_one,
             header_hash,
             chain_work,
             target,
@@ -339,6 +341,8 @@ mod tests {
     use nova_snark::{provider::VestaEngine, traits::Engine};
     use pasta_curves::Fp;
 
+    const GENESIS_BLOCK_TIMESTAMP: u64 = 1231006505u64;
+
     #[test]
     fn test_height_mod_2016() {
         let mut cs = TestConstraintSystem::<Fp>::new();
@@ -351,7 +355,7 @@ mod tests {
             assert!(res.is_ok());
             let height = res.unwrap();
 
-            let res = height_mod_2016(
+            let res = height_modulo_2016(
                 cs.namespace(|| format!("alloc height modulo 2016 {i}")),
                 &height,
             );
@@ -425,14 +429,16 @@ mod tests {
             header_0_bytes[72..76].try_into().unwrap(),
         ));
         assert_eq!(z_out[3].get_value().unwrap(), target_scalar);
-        assert_eq!(z_out[4].get_value().unwrap(), z_in_values[4]);
+        assert_eq!(
+            z_out[4].get_value().unwrap(),
+            Fp::from(GENESIS_BLOCK_TIMESTAMP)
+        );
 
         let timestamp_scalar =
             Fp::from(u32::from_le_bytes(header_0_bytes[68..72].try_into().unwrap()) as u64);
 
         assert_eq!(z_out[5].get_value().unwrap(), timestamp_scalar);
-        // We set the previous block timestamp to genesis block timestamp
-        assert_eq!(z_out[6].get_value().unwrap(), timestamp_scalar);
+        assert_eq!(z_out[6].get_value().unwrap(), Fp::ZERO);
         for i in 7..STEP_FUNCTION_ARITY - 1 {
             assert_eq!(
                 z_out[i].get_value().unwrap(),
@@ -441,7 +447,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 93394);
+        assert_eq!(cs.num_constraints(), 93704);
     }
 
     #[test]
@@ -475,11 +481,7 @@ mod tests {
         z_in_values.push(target_scalar_from_u32(0x1D00FFFF)); // Previous block target
         z_in_values.push(Fp::from(GENESIS_BLOCK_TIMESTAMP)); // Epoch start timestamp
         z_in_values.push(Fp::from(GENESIS_BLOCK_TIMESTAMP)); // Previous block timestamp
-                                                             // We set the timestamp before the genesis block to the same value as the genesis block
-                                                             // timestamp (to satisfy non-negative constraint on the difference between previous block
-                                                             // timestamp and epoch start time)
-        z_in_values.push(Fp::from(GENESIS_BLOCK_TIMESTAMP));
-        z_in_values.extend_from_slice(&[Fp::ZERO; 9]); // Timestamps of 9 previous block (most recent block first)
+        z_in_values.extend_from_slice(&[Fp::ZERO; 10]); // Timestamps of 10 previous block (most recent block first)
 
         let z_in = z_in_values
             .clone()
@@ -522,6 +524,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 93394);
+        assert_eq!(cs.num_constraints(), 93704);
     }
 }
