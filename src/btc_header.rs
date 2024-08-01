@@ -466,6 +466,51 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct BitcoinMultiHeaderCircuit<G: Group> {
+    num_headers_per_step: usize,
+    header_circuits: Vec<BitcoinHeaderCircuit<G>>,
+}
+
+impl<G: Group> BitcoinMultiHeaderCircuit<G> {
+    pub fn new(num_headers_per_step: usize, header_vec: Vec<Vec<u8>>) -> Self {
+        assert_eq!(header_vec.len(), num_headers_per_step);
+
+        let header_circuits = header_vec
+            .into_iter()
+            .map(|hdr_bytes| BitcoinHeaderCircuit::<G>::from_bytes(hdr_bytes))
+            .collect::<Vec<_>>();
+        Self {
+            num_headers_per_step,
+            header_circuits,
+        }
+    }
+}
+
+impl<G: Group> StepCircuit<G::Scalar> for BitcoinMultiHeaderCircuit<G> {
+    fn arity(&self) -> usize {
+        STEP_FUNCTION_ARITY
+    }
+
+    fn synthesize<CS>(
+        &self,
+        cs: &mut CS,
+        z: &[AllocatedNum<G::Scalar>],
+    ) -> Result<Vec<AllocatedNum<G::Scalar>>, SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
+        let mut z_out = z.to_vec();
+
+        for i in 0..self.num_headers_per_step {
+            z_out = self.header_circuits[i]
+                .verify_btc_header(cs.namespace(|| format!("verify BTC header {i}")), &z_out)?;
+        }
+
+        Ok(z_out)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils::target_scalar_from_u32;
@@ -477,6 +522,21 @@ mod tests {
     use pasta_curves::Fp;
 
     const GENESIS_BLOCK_TIMESTAMP: u64 = 1231006505u64;
+    const HEADER_0: &str = "01000000000000000000000000000000\
+                            00000000000000000000000000000000\
+                            000000003ba3edfd7a7b12b27ac72c3e\
+                            67768f617fc81bc3888a51323a9fb8aa\
+                            4b1e5e4a29ab5f49ffff001d1dac2b7c";
+    const HEADER_1: &str = "010000006fe28c0ab6f1b372c1a6a246\
+                            ae63f74f931e8365e15a089c68d61900\
+                            00000000982051fd1e4ba744bbbe680e\
+                            1fee14677ba1a3c3540bf7b1cdb606e8\
+                            57233e0e61bc6649ffff001d01e36299";
+    const HEADER_2: &str = "010000004860eb18bf1b1620e37e9490\
+                            fc8a427514416fd75159ab86688e9a83\
+                            00000000d5fdcc541e25de1c7a5added\
+                            f24858b8bb665c9f36ef744ee42c3160\
+                            22c90f9bb0bc6649ffff001d08d2bd61";
 
     #[test]
     fn test_height_mod_2016() {
@@ -522,18 +582,7 @@ mod tests {
 
     #[test]
     fn test_genesis_block() {
-        let header_0 = "01000000000000000000000000000000\
-                              00000000000000000000000000000000\
-                              000000003ba3edfd7a7b12b27ac72c3e\
-                              67768f617fc81bc3888a51323a9fb8aa\
-                              4b1e5e4a29ab5f49ffff001d1dac2b7c";
-        let header_1 = "010000006fe28c0ab6f1b372c1a6a246\
-                              ae63f74f931e8365e15a089c68d61900\
-                              00000000982051fd1e4ba744bbbe680e\
-                              1fee14677ba1a3c3540bf7b1cdb606e8\
-                              57233e0e61bc6649ffff001d01e36299";
-
-        let header_0_bytes = hex::decode(header_0).unwrap();
+        let header_0_bytes = hex::decode(HEADER_0).unwrap();
         type G1 = <VestaEngine as Engine>::GE;
 
         let mut cs = TestConstraintSystem::<Fp>::new();
@@ -554,7 +603,7 @@ mod tests {
         let z_out = res.unwrap();
         assert_eq!(z_out[0].get_value().unwrap(), Fp::ONE);
 
-        let header_1_bytes = hex::decode(header_1).unwrap();
+        let header_1_bytes = hex::decode(HEADER_1).unwrap();
         let hash_val = le_bytes_to_scalar(&header_1_bytes[4..32].to_vec());
         assert_eq!(z_out[1].get_value().unwrap(), hash_val);
 
@@ -587,25 +636,9 @@ mod tests {
 
     #[test]
     fn test_block_one() {
-        let header_0 = "01000000000000000000000000000000\
-                              00000000000000000000000000000000\
-                              000000003ba3edfd7a7b12b27ac72c3e\
-                              67768f617fc81bc3888a51323a9fb8aa\
-                              4b1e5e4a29ab5f49ffff001d1dac2b7c";
-        let header_1 = "010000006fe28c0ab6f1b372c1a6a246\
-                              ae63f74f931e8365e15a089c68d61900\
-                              00000000982051fd1e4ba744bbbe680e\
-                              1fee14677ba1a3c3540bf7b1cdb606e8\
-                              57233e0e61bc6649ffff001d01e36299";
-        let header_2 = "010000004860eb18bf1b1620e37e9490\
-                              fc8a427514416fd75159ab86688e9a83\
-                              00000000d5fdcc541e25de1c7a5added\
-                              f24858b8bb665c9f36ef744ee42c3160\
-                              22c90f9bb0bc6649ffff001d08d2bd61";
-
-        let header_0_bytes = hex::decode(header_0).unwrap();
-        let header_1_bytes = hex::decode(header_1).unwrap();
-        let header_2_bytes = hex::decode(header_2).unwrap();
+        let header_0_bytes = hex::decode(HEADER_0).unwrap();
+        let header_1_bytes = hex::decode(HEADER_1).unwrap();
+        let header_2_bytes = hex::decode(HEADER_2).unwrap();
         type G1 = <VestaEngine as Engine>::GE;
 
         let mut cs = TestConstraintSystem::<Fp>::new();
@@ -642,7 +675,10 @@ mod tests {
             header_1_bytes[72..76].try_into().unwrap(),
         ));
         assert_eq!(z_out[3].get_value().unwrap(), target_scalar);
-        assert_eq!(z_out[4].get_value().unwrap(), z_in_values[4]);
+        assert_eq!(
+            z_out[4].get_value().unwrap(),
+            Fp::from(GENESIS_BLOCK_TIMESTAMP)
+        );
 
         let block0_timestamp_scalar =
             Fp::from(u32::from_le_bytes(header_0_bytes[68..72].try_into().unwrap()) as u64);
@@ -660,5 +696,65 @@ mod tests {
 
         assert!(cs.is_satisfied());
         assert_eq!(cs.num_constraints(), 97370);
+    }
+
+    #[test]
+    fn test_two_blocks() {
+        let header_0_bytes = hex::decode(HEADER_0).unwrap();
+        let header_1_bytes = hex::decode(HEADER_1).unwrap();
+        let header_2_bytes = hex::decode(HEADER_2).unwrap();
+        type G1 = <VestaEngine as Engine>::GE;
+
+        let mut cs = TestConstraintSystem::<Fp>::new();
+        let z_in_values = BitcoinHeaderCircuit::<G1>::initial_step_function_inputs();
+
+        let z_in = z_in_values
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(i, v)| {
+                AllocatedNum::alloc_infallible(cs.namespace(|| format!("alloc z_in[{i}]")), || v)
+            })
+            .collect::<Vec<_>>();
+
+        let header_circuit = BitcoinMultiHeaderCircuit::<G1>::new(
+            2,
+            vec![header_0_bytes.clone(), header_1_bytes.clone()],
+        );
+        let res = header_circuit.synthesize(&mut cs.namespace(|| "verify two headers"), &z_in);
+        assert!(res.is_ok());
+        let z_out = res.unwrap();
+        assert_eq!(z_out[0].get_value().unwrap(), Fp::from(2u64));
+
+        let hash_val = le_bytes_to_scalar(&header_2_bytes[4..32].to_vec());
+        assert_eq!(z_out[1].get_value().unwrap(), hash_val);
+
+        assert_eq!(z_out[2].get_value().unwrap(), Fp::from(0x200020002u64));
+
+        let target_scalar = target_scalar_from_u32::<Fp>(u32::from_le_bytes(
+            header_1_bytes[72..76].try_into().unwrap(),
+        ));
+        assert_eq!(z_out[3].get_value().unwrap(), target_scalar);
+        assert_eq!(
+            z_out[4].get_value().unwrap(),
+            Fp::from(GENESIS_BLOCK_TIMESTAMP)
+        );
+
+        let block0_timestamp_scalar =
+            Fp::from(u32::from_le_bytes(header_0_bytes[68..72].try_into().unwrap()) as u64);
+        let block1_timestamp_scalar =
+            Fp::from(u32::from_le_bytes(header_1_bytes[68..72].try_into().unwrap()) as u64);
+
+        assert_eq!(z_out[5].get_value().unwrap(), block1_timestamp_scalar);
+        assert_eq!(z_out[6].get_value().unwrap(), block0_timestamp_scalar);
+        for i in 7..STEP_FUNCTION_ARITY - 1 {
+            assert_eq!(
+                z_out[i].get_value().unwrap(),
+                z_in[i - 1].get_value().unwrap()
+            );
+        }
+
+        assert!(cs.is_satisfied());
+        assert_eq!(cs.num_constraints(), 194740);
     }
 }
