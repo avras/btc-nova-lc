@@ -9,7 +9,7 @@ use nova_snark::traits::{circuit::StepCircuit, Group};
 use std::marker::PhantomData;
 
 use crate::{
-    median::verify_current_timestamp,
+    median::{compute_median_timestamp, NUM_TIMESTAMP_BITS},
     target::{accumulate_chainwork, calc_new_target, nbits_to_target},
     utils::{
         alloc_constant, alloc_num_equals, alloc_num_equals_constant, conditionally_select,
@@ -115,6 +115,7 @@ impl<G: Group> Default for BitcoinHeaderCircuit<G> {
 }
 
 impl<G: Group> BitcoinHeaderCircuit<G> {
+    /// Creates an instance from 80 bytes. The `header` field has 640 bools.
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         assert_eq!(bytes.len(), HEADER_LENGTH_BYTES);
 
@@ -134,6 +135,7 @@ impl<G: Group> BitcoinHeaderCircuit<G> {
         }
     }
 
+    /// Generates the initial inputs to the Nova step function
     pub fn initial_step_function_inputs() -> Vec<G::Scalar> {
         let z = vec![G::Scalar::ZERO; STEP_FUNCTION_ARITY];
         // z[0]  Block height
@@ -144,26 +146,16 @@ impl<G: Group> BitcoinHeaderCircuit<G> {
         // z[5..16] Timestamps of 11 previous block (most recent block first)
         z
     }
-}
 
-impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
-    fn arity(&self) -> usize {
-        STEP_FUNCTION_ARITY
-    }
-
-    fn synthesize<CS>(
-        &self,
-        cs: &mut CS,
-        z: &[AllocatedNum<G::Scalar>],
-    ) -> Result<Vec<AllocatedNum<G::Scalar>>, SynthesisError>
+    /// Increments the block height and returns updated value
+    pub fn increment_height<CS>(
+        mut cs: CS,
+        height: &AllocatedNum<G::Scalar>,
+    ) -> Result<AllocatedNum<G::Scalar>, SynthesisError>
     where
         CS: ConstraintSystem<G::Scalar>,
     {
-        let height = &z[0];
-        let is_genesis_block =
-            alloc_num_equals_constant(cs.namespace(|| "is height == 0"), height, G::Scalar::ZERO)?;
-
-        let height_plus_one = AllocatedNum::alloc(cs.namespace(|| "alloc h+1"), || {
+        let height_plus_one = AllocatedNum::alloc(cs.namespace(|| "alloc height+1"), || {
             height
                 .get_value()
                 .map(|h| h + G::Scalar::ONE)
@@ -176,18 +168,18 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             |lc| lc + height_plus_one.get_variable(),
         );
 
-        let header_bits: Vec<Boolean> = self
-            .header
-            .into_iter()
-            .enumerate()
-            .map(|(i, b)| -> Result<Boolean, SynthesisError> {
-                Ok(Boolean::from(AllocatedBit::alloc(
-                    cs.namespace(|| format!("alloc bit {i}")),
-                    Some(b),
-                )?))
-            })
-            .collect::<Result<Vec<_>, SynthesisError>>()?;
+        Ok(height_plus_one)
+    }
 
+    /// Increments the block height and returns updated value
+    pub fn verify_prev_block_hash<CS>(
+        mut cs: CS,
+        header_bits: &Vec<Boolean>,
+        prev_block_hash: &AllocatedNum<G::Scalar>,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
         let prev_block_hash_in_hdr = le_bytes_to_alloc_num(
             cs.namespace(|| "alloc previous block hash"),
             &header_bits[32..256].to_vec(),
@@ -195,14 +187,27 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
         let prev_block_hash_correct = alloc_num_equals(
             cs.namespace(|| "prev block hash == header field"),
             &prev_block_hash_in_hdr,
-            &z[1],
+            prev_block_hash,
         )?;
         Boolean::enforce_equal(
             cs.namespace(|| "check prev block correctness"),
             &prev_block_hash_correct,
             &Boolean::Constant(true),
-        )?;
+        )
+    }
 
+    /// Verifices that the double SHA256 hash of the block header falls
+    /// below the target threshold. Returns the header hash as a field element.
+    /// As hash always has at least 32 leading zero bits, it fits in a field
+    /// element as long as the field can represent 224-bit integers
+    pub fn verify_proof_of_work<CS>(
+        mut cs: CS,
+        header_bits: &Vec<Boolean>,
+        target: &AllocatedNum<G::Scalar>,
+    ) -> Result<AllocatedNum<G::Scalar>, SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
         let single_hash = sha256(cs.namespace(|| "hash header once"), &header_bits)?;
         let double_hash = sha256(cs.namespace(|| "hash header twice"), &single_hash)?;
 
@@ -221,11 +226,6 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             &ls_bits.to_vec(),
         )?;
 
-        let (target, mask) = nbits_to_target(
-            cs.namespace(|| "get target threshold and mask"),
-            &header_bits[576..608].to_vec(),
-        )?;
-
         let header_hash_lte_target = less_than_or_equal(
             cs.namespace(|| "is hash <= target"),
             &header_hash,
@@ -238,24 +238,35 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             &Boolean::Constant(true),
         )?;
 
+        Ok(header_hash)
+    }
+
+    /// Verifies that the target in the current header has been updated
+    /// correctly if the block height is a multiple of 2016. Returns the
+    /// updated epoch start timestamp (the current block's timestamp in case
+    /// block height is a multiple of 2016)
+    pub fn verify_target<CS>(
+        mut cs: CS,
+        height: &AllocatedNum<G::Scalar>,
+        current_timestamp: &AllocatedNum<G::Scalar>,
+        target: &AllocatedNum<G::Scalar>,
+        prev_block_target: &AllocatedNum<G::Scalar>,
+        current_epoch_start_timestamp: &AllocatedNum<G::Scalar>,
+        prev_block_timestamp: &AllocatedNum<G::Scalar>,
+        mask: &AllocatedNum<G::Scalar>,
+    ) -> Result<AllocatedNum<G::Scalar>, SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
+        let is_genesis_block =
+            alloc_num_equals_constant(cs.namespace(|| "is height == 0"), height, G::Scalar::ZERO)?;
+
         let height_mod_2016 = height_modulo_2016(cs.namespace(|| "alloc height mod 2016"), height)?;
         let blk_height_2016_multiple = alloc_num_equals_constant(
             cs.namespace(|| "is block height a multiple of 2016"),
             &height_mod_2016,
             G::Scalar::ZERO,
         )?;
-
-        let chain_work =
-            accumulate_chainwork(cs.namespace(|| "accumulate chainwork"), &z[2], &target)?;
-
-        let current_timestamp = le_bytes_to_alloc_num(
-            cs.namespace(|| "alloc current block timestamp"),
-            &header_bits[544..576].to_vec(),
-        )?;
-
-        let prev_block_target = &z[3];
-        let current_epoch_start_timestamp = &z[4];
-        let prev_block_timestamp = &z[5];
 
         let calculated_target = calc_new_target(
             cs.namespace(|| "calculate new target"),
@@ -318,8 +329,111 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
             &blk_height_2016_multiple,
         )?;
 
-        let prev_timestamps = z[5..].to_vec();
-        verify_current_timestamp(cs, &current_timestamp, &prev_timestamps)?;
+        Ok(epoch_start_timestamp)
+    }
+
+    /// Verifies that the current timestamp is at least as large
+    /// as the median of the previous 11 block timestamps
+    pub fn verify_current_timestamp<CS>(
+        mut cs: CS,
+        current_timestamp: &AllocatedNum<G::Scalar>,
+        prev_timestamps: &Vec<AllocatedNum<G::Scalar>>,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
+        let median_timestamp =
+            compute_median_timestamp(cs.namespace(|| "compute median timestamp"), prev_timestamps)?;
+
+        let is_median_lte_current_ts = less_than_or_equal(
+            cs.namespace(|| "is current timestamp >= median timestamp"),
+            &median_timestamp,
+            current_timestamp,
+            NUM_TIMESTAMP_BITS,
+        )?;
+
+        Boolean::enforce_equal(
+            cs.namespace(|| "check inequality holds"),
+            &is_median_lte_current_ts,
+            &Boolean::Constant(true),
+        )
+    }
+
+    /// Verifies a single Bitcoin block header
+    pub fn verify_btc_header<CS>(
+        &self,
+        mut cs: CS,
+        z: &[AllocatedNum<G::Scalar>],
+    ) -> Result<Vec<AllocatedNum<G::Scalar>>, SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
+        let height = &z[0];
+        let prev_block_hash = &z[1];
+        let old_chainwork = &z[2];
+        let prev_block_target = &z[3];
+        let current_epoch_start_timestamp = &z[4];
+        let prev_block_timestamp = &z[5];
+        let prev_eleven_block_timestamps = z[5..].to_vec();
+
+        let header_bits: Vec<Boolean> = self
+            .header
+            .into_iter()
+            .enumerate()
+            .map(|(i, b)| -> Result<Boolean, SynthesisError> {
+                Ok(Boolean::from(AllocatedBit::alloc(
+                    cs.namespace(|| format!("alloc bit {i}")),
+                    Some(b),
+                )?))
+            })
+            .collect::<Result<Vec<_>, SynthesisError>>()?;
+
+        let height_plus_one = Self::increment_height(cs.namespace(|| "increment height"), height)?;
+
+        Self::verify_prev_block_hash(
+            cs.namespace(|| "verify previous block hash"),
+            &header_bits,
+            prev_block_hash,
+        )?;
+
+        let (target, mask) = nbits_to_target(
+            cs.namespace(|| "get target threshold and mask"),
+            &header_bits[576..608].to_vec(),
+        )?;
+
+        let header_hash = Self::verify_proof_of_work(
+            cs.namespace(|| "verify proof of work"),
+            &header_bits,
+            &target,
+        )?;
+
+        let current_timestamp = le_bytes_to_alloc_num(
+            cs.namespace(|| "alloc current block timestamp"),
+            &header_bits[544..576].to_vec(),
+        )?;
+
+        let epoch_start_timestamp = Self::verify_target(
+            cs.namespace(|| "verify target calculation"),
+            height,
+            &current_timestamp,
+            &target,
+            prev_block_target,
+            current_epoch_start_timestamp,
+            prev_block_timestamp,
+            &mask,
+        )?;
+
+        Self::verify_current_timestamp(
+            cs.namespace(|| "verify current timestamp"),
+            &current_timestamp,
+            &prev_eleven_block_timestamps,
+        )?;
+
+        let chain_work = accumulate_chainwork(
+            cs.namespace(|| "accumulate chainwork"),
+            old_chainwork,
+            &target,
+        )?;
 
         let mut z_out = vec![
             height_plus_one,
@@ -332,6 +446,23 @@ impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
         z_out.extend_from_slice(&z[5..(STEP_FUNCTION_ARITY - 1)]);
 
         Ok(z_out)
+    }
+}
+
+impl<G: Group> StepCircuit<G::Scalar> for BitcoinHeaderCircuit<G> {
+    fn arity(&self) -> usize {
+        STEP_FUNCTION_ARITY
+    }
+
+    fn synthesize<CS>(
+        &self,
+        cs: &mut CS,
+        z: &[AllocatedNum<G::Scalar>],
+    ) -> Result<Vec<AllocatedNum<G::Scalar>>, SynthesisError>
+    where
+        CS: ConstraintSystem<G::Scalar>,
+    {
+        self.verify_btc_header(cs.namespace(|| "verify BTC header"), z)
     }
 }
 

@@ -5,7 +5,7 @@ use ff::PrimeFieldBits;
 
 use crate::utils::{alloc_num_equals, less_than, less_than_or_equal};
 
-const NUM_TIMESTAMP_BITS: usize = 32;
+pub(crate) const NUM_TIMESTAMP_BITS: usize = 32;
 
 pub(crate) fn alloc_median_timestamp<Scalar, CS>(
     mut cs: CS,
@@ -221,32 +221,6 @@ where
     )?;
 
     Ok(median)
-}
-
-pub(crate) fn verify_current_timestamp<Scalar, CS>(
-    mut cs: CS,
-    current_timestamp: &AllocatedNum<Scalar>,
-    prev_timestamps: &Vec<AllocatedNum<Scalar>>,
-) -> Result<(), SynthesisError>
-where
-    Scalar: PrimeFieldBits,
-    CS: ConstraintSystem<Scalar>,
-{
-    let median_timestamp =
-        compute_median_timestamp(cs.namespace(|| "compute median timestamp"), prev_timestamps)?;
-
-    let is_median_lte_current_ts = less_than_or_equal(
-        cs.namespace(|| "is current timestamp >= median timestamp"),
-        &median_timestamp,
-        current_timestamp,
-        NUM_TIMESTAMP_BITS,
-    )?;
-
-    Boolean::enforce_equal(
-        cs.namespace(|| "check inequality holds"),
-        &is_median_lte_current_ts,
-        &Boolean::Constant(true),
-    )
 }
 
 #[cfg(test)]
