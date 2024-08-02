@@ -8,7 +8,7 @@ use nova_snark::provider::{Bn256EngineKZG, GrumpkinEngine};
 use nova_snark::traits::circuit::TrivialCircuit;
 use nova_snark::traits::snark::RelaxedR1CSSNARKTrait;
 use nova_snark::traits::Engine;
-use nova_snark::{PublicParams, RecursiveSNARK};
+use nova_snark::{CompressedSNARK, PublicParams, RecursiveSNARK};
 
 // Code from https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -147,6 +147,7 @@ fn main() {
     // produce a recursive SNARK
     println!("Generating a RecursiveSNARK with {num_headers_per_step} Bitcoin headers validated per step...");
     let z0_primary = BitcoinHeaderCircuit::<<E1 as Engine>::GE>::initial_step_function_inputs();
+    let z0_secondary = vec![<E2 as Engine>::Scalar::zero()];
 
     let mut recursive_snark: RecursiveSNARK<E1, E2, C1, C2> =
         RecursiveSNARK::<E1, E2, C1, C2>::new(
@@ -154,7 +155,7 @@ fn main() {
             &circuits[0],
             &circuit_secondary,
             &z0_primary,
-            &[<E2 as Engine>::Scalar::zero()],
+            &z0_secondary,
         )
         .unwrap();
 
@@ -177,12 +178,40 @@ fn main() {
 
     // verify the recursive SNARK
     println!("Verifying a RecursiveSNARK...");
-    let res = recursive_snark.verify(
-        &pp,
-        num_steps,
-        &z0_primary,
-        &[<E2 as Engine>::Scalar::zero()],
-    );
+    let res = recursive_snark.verify(&pp, num_steps, &z0_primary, &z0_secondary);
     println!("RecursiveSNARK::verify: {:?}", res.is_ok(),);
     assert!(res.is_ok());
+
+    // produce a compressed SNARK
+    println!("Generating a CompressedSNARK using Spartan with HyperKZG...");
+    let (pk, vk) = CompressedSNARK::<_, _, _, _, S1, S2>::setup(&pp).unwrap();
+
+    let start = Instant::now();
+
+    let res = CompressedSNARK::<_, _, _, _, S1, S2>::prove(&pp, &pk, &recursive_snark);
+    println!(
+        "CompressedSNARK::prove: {:?}, took {:?}",
+        res.is_ok(),
+        start.elapsed()
+    );
+    assert!(res.is_ok());
+    let compressed_snark = res.unwrap();
+
+    let compressed_snark_serialized = bincode::serialize(&compressed_snark).unwrap();
+    println!(
+        "CompressedSNARK::len {:?} bytes",
+        compressed_snark_serialized.len()
+    );
+
+    // verify the compressed SNARK
+    println!("Verifying a CompressedSNARK...");
+    let start = Instant::now();
+    let res = compressed_snark.verify(&vk, num_steps, &z0_primary, &z0_secondary);
+    println!(
+        "CompressedSNARK::verify: {:?}, took {:?}",
+        res.is_ok(),
+        start.elapsed()
+    );
+    assert!(res.is_ok());
+    println!("=========================================================");
 }
