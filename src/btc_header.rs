@@ -1,3 +1,4 @@
+use arecibo::traits::{circuit::StepCircuit, Group};
 use bellpepper::gadgets::sha256::sha256;
 use bellpepper_core::{
     boolean::{AllocatedBit, Boolean},
@@ -5,7 +6,6 @@ use bellpepper_core::{
     ConstraintSystem, SynthesisError,
 };
 use ff::{Field, PrimeFieldBits};
-use nova_snark::traits::{circuit::StepCircuit, Group};
 use std::marker::PhantomData;
 
 use crate::{
@@ -516,9 +516,9 @@ mod tests {
     use crate::utils::target_scalar_from_u32;
 
     use super::*;
+    use arecibo::{provider::VestaEngine, traits::Engine};
     use bellpepper_core::test_cs::TestConstraintSystem;
     use ff::PrimeField;
-    use nova_snark::{provider::VestaEngine, traits::Engine};
     use pasta_curves::Fp;
 
     const GENESIS_BLOCK_TIMESTAMP: u64 = 1231006505u64;

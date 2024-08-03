@@ -4,15 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arecibo = { git="https://github.com/argumentcomputer/arecibo/", branch = "dev"}
 bellpepper = { version = "0.4.1", default-features = false }
 bellpepper-core = { version = "0.4.0", default-features = false }
 ff = "0.13.0"
-nova-snark = "0.37.0"
 num-bigint = "0.4.6"
 
 [dev-dependencies]
 bincode = "1.3.3"
 clap = "4.5.11"
+halo2curves = { version = "0.6.0", features = ["bits", "derive_serde"] }
 hex = "0.4.3"
 pasta_curves = "0.5.1"
 rand = "0.8.5"
