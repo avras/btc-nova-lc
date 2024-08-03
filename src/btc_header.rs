@@ -563,7 +563,7 @@ mod tests {
             );
         }
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 309 * test_cases.len());
+        assert_eq!(cs.num_constraints(), 65 * test_cases.len());
     }
 
     fn le_bytes_to_scalar(bytes: &Vec<u8>) -> Fp {
@@ -631,7 +631,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 97370);
+        assert_eq!(cs.num_constraints(), 90598);
     }
 
     #[test]
@@ -695,7 +695,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 97370);
+        assert_eq!(cs.num_constraints(), 90598);
     }
 
     #[test]
@@ -755,6 +755,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 194740);
+        assert_eq!(cs.num_constraints(), 181196);
     }
 }

@@ -513,7 +513,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 9425 * test_cases.len());
+        assert_eq!(cs.num_constraints(), 7063 * test_cases.len());
     }
 
     #[test]
@@ -564,6 +564,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 5015 * test_cases.len());
+        assert_eq!(cs.num_constraints(), 4057 * test_cases.len());
     }
 }

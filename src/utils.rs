@@ -195,8 +195,30 @@ where
     Scalar: PrimeFieldBits,
     CS: ConstraintSystem<Scalar>,
 {
-    let mut a_bits = a.to_bits_le(cs.namespace(|| "decompose a"))?;
-    a_bits.truncate(n_bits);
+    let a_bit_values = match a.get_value() {
+        Some(a_val) => {
+            let mut a_bools = a_val
+                .to_le_bits()
+                .iter()
+                .map(|b| if *b { true } else { false })
+                .collect::<Vec<bool>>();
+            a_bools.truncate(n_bits);
+            Some(a_bools)
+        }
+        None => None,
+    };
+
+    let a_bits = (0..n_bits)
+        .map(|i| {
+            AllocatedBit::alloc(
+                cs.namespace(|| format!("alloc bit {i}")),
+                a_bit_values.as_ref().map(|arr| arr[i]),
+            )
+        })
+        .collect::<Result<Vec<_>, SynthesisError>>()?
+        .into_iter()
+        .map(Boolean::from)
+        .collect::<Vec<Boolean>>();
 
     let mut recompose_lc = LinearCombination::<Scalar>::zero();
     let mut coeff = Scalar::ONE;

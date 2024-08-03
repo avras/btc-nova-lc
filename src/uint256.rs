@@ -872,7 +872,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 521 * num_tests);
+        assert_eq!(cs.num_constraints(), 267 * num_tests);
     }
 
     #[test]
@@ -940,7 +940,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 521 * 2 * num_tests);
+        assert_eq!(cs.num_constraints(), 267 * 2 * num_tests);
     }
     #[test]
     fn test_enforce_equal() {
@@ -1211,7 +1211,7 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 2884 * num_tests);
+        assert_eq!(cs.num_constraints(), 2180 * num_tests);
     }
 
     #[test]
@@ -1307,6 +1307,6 @@ mod tests {
         }
 
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 4183 * num_tests);
+        assert_eq!(cs.num_constraints(), 3225 * num_tests);
     }
 }
