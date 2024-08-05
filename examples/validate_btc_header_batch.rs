@@ -4,11 +4,15 @@ use std::{fs::File, path::Path};
 
 use btc_nova_lc::btc_header::{BitcoinHeaderCircuit, BitcoinMultiHeaderCircuit};
 use clap::{Arg, Command};
+use ff::Field;
+use humansize::{format_size, BINARY};
+use humantime::format_duration;
 use nova_snark::provider::{Bn256EngineKZG, GrumpkinEngine};
 use nova_snark::traits::circuit::TrivialCircuit;
 use nova_snark::traits::snark::RelaxedR1CSSNARKTrait;
 use nova_snark::traits::Engine;
 use nova_snark::{CompressedSNARK, PublicParams, RecursiveSNARK};
+use num_bigint::BigUint;
 
 // Code from https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -119,7 +123,11 @@ fn main() {
         &*S2::ck_floor(),
     )
     .unwrap();
-    println!("PublicParams::setup, took {:?} ", start.elapsed());
+    let param_gen_time = start.elapsed();
+    println!("PublicParams::setup, took {:?} ", param_gen_time);
+    let pp_serialized = bincode::serialize(&pp).unwrap();
+    let pp_len = format_size(pp_serialized.len(), BINARY);
+    println!("PublicParams::size {pp_len}");
 
     println!(
         "Number of constraints per step (primary circuit): {}",
@@ -144,6 +152,7 @@ fn main() {
         .map(|v| BitcoinMultiHeaderCircuit::<<E1 as Engine>::GE>::new(num_headers_per_step, v))
         .collect::<Vec<_>>();
 
+    let proof_gen_timer = Instant::now();
     // produce a recursive SNARK
     println!("Generating a RecursiveSNARK with {num_headers_per_step} Bitcoin headers validated per step...");
     let z0_primary = BitcoinHeaderCircuit::<<E1 as Engine>::GE>::initial_step_function_inputs();
@@ -195,23 +204,53 @@ fn main() {
         start.elapsed()
     );
     assert!(res.is_ok());
-    let compressed_snark = res.unwrap();
+    let proving_time = proof_gen_timer.elapsed();
+    let proving_time_human = format_duration(proving_time).to_string();
+    println!("Total proving time is {proving_time_human}");
 
+    let compressed_snark = res.unwrap();
     let compressed_snark_serialized = bincode::serialize(&compressed_snark).unwrap();
-    println!(
-        "CompressedSNARK::len {:?} bytes",
-        compressed_snark_serialized.len()
-    );
+    let proof_size = format_size(compressed_snark_serialized.len(), BINARY);
+    println!("CompressedSNARK::proof_size {proof_size}");
 
     // verify the compressed SNARK
     println!("Verifying a CompressedSNARK...");
     let start = Instant::now();
     let res = compressed_snark.verify(&vk, num_steps, &z0_primary, &z0_secondary);
-    println!(
-        "CompressedSNARK::verify: {:?}, took {:?}",
-        res.is_ok(),
-        start.elapsed()
-    );
     assert!(res.is_ok());
+
+    let verification_time = start.elapsed();
+    println!("CompressedSNARK::verify took {:?}", verification_time);
+
     println!("=========================================================");
+    println!("The below line is in CSV format for performance comparison");
+    println!(
+        "nova_batch,{},{},{:?},{:?},{},{},{:?}",
+        num_headers_per_step,
+        num_steps,
+        proving_time,
+        verification_time,
+        compressed_snark_serialized.len(),
+        pp_len,
+        param_gen_time,
+    );
+    println!("Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time");
+    println!("=========================================================");
+
+    let zn_primary = res.unwrap().0;
+    let final_block_height = zn_primary[0] - <E1 as Engine>::Scalar::ONE;
+    let final_block_hash = zn_primary[1];
+    let accumulated_chainwork = zn_primary[2];
+    let pow_threshold = zn_primary[3];
+
+    let mut block_height_str = format!("{:?}", final_block_height);
+    block_height_str.remove(0);
+    block_height_str.remove(0);
+    println!(
+        "Verified upto height   {}",
+        BigUint::from_bytes_be(&hex::decode(block_height_str).unwrap())
+    );
+    println!("Latest block hash      {:?}", final_block_hash);
+    println!("PoW threshold in block {:?}", pow_threshold);
+    println!("Accumulated chainwork  {:?}", accumulated_chainwork);
 }
