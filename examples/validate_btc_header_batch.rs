@@ -180,10 +180,6 @@ fn main() {
             step_start.elapsed()
         );
     }
-    println!(
-        "Total time taken by RecursiveSNARK::prove_steps: {:?}",
-        start.elapsed()
-    );
 
     // verify the recursive SNARK
     println!("Verifying a RecursiveSNARK...");
@@ -191,20 +187,25 @@ fn main() {
     println!("RecursiveSNARK::verify: {:?}", res.is_ok(),);
     assert!(res.is_ok());
 
+    let recursive_snark_proving_time = start.elapsed();
+    println!(
+        "Total time taken by RecursiveSNARK::prove_steps: {:?}",
+        recursive_snark_proving_time
+    );
+
+    let start = Instant::now();
     // produce a compressed SNARK
     println!("Generating a CompressedSNARK using Spartan with HyperKZG...");
     let (pk, vk) = CompressedSNARK::<_, _, _, _, S1, S2>::setup(&pp).unwrap();
 
-    let start = Instant::now();
-
     let res = CompressedSNARK::<_, _, _, _, S1, S2>::prove(&pp, &pk, &recursive_snark);
-    println!(
-        "CompressedSNARK::prove: {:?}, took {:?}",
-        res.is_ok(),
-        start.elapsed()
-    );
     assert!(res.is_ok());
+    let compressed_snark_proving_time = start.elapsed();
     let proving_time = proof_gen_timer.elapsed();
+    println!(
+        "CompressedSNARK::prove took {:?}",
+        compressed_snark_proving_time,
+    );
     let proving_time_human = format_duration(proving_time).to_string();
     println!("Total proving time is {proving_time_human}");
 
@@ -225,16 +226,20 @@ fn main() {
     println!("=========================================================");
     println!("The below line is in CSV format for performance comparison");
     println!(
-        "nova_batch,{},{},{:?},{:?},{},{},{:?}",
+        "nova_batch,{},{},{:?},{:?},{:?},{:?},{},{},{:?}",
         num_headers_per_step,
         num_steps,
         proving_time,
+        compressed_snark_proving_time,
+        recursive_snark_proving_time,
         verification_time,
         compressed_snark_serialized.len(),
         pp_len,
         param_gen_time,
     );
-    println!("Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time");
+    println!(
+        "Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time"
+    );
     println!("=========================================================");
 
     let zn_primary = res.unwrap().0;
