@@ -1,0 +1,35 @@
+Took 3.140953ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 56.643260599s 
+PublicParams::size 4.10 GiB
+Number of constraints per step (primary circuit): 11642804
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 11614024
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 128 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 204ns 
+RecursiveSNARK::prove 1 : took 4.582215647s 
+RecursiveSNARK::prove 2 : took 5.21845829s 
+RecursiveSNARK::prove 3 : took 5.908300267s 
+RecursiveSNARK::prove 4 : took 6.008527044s 
+RecursiveSNARK::prove 5 : took 6.505032035s 
+RecursiveSNARK::prove 6 : took 6.388971145s 
+RecursiveSNARK::prove 7 : took 6.474761802s 
+Total time taken by RecursiveSNARK::prove_steps: 41.086449461s
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove: true, took 25.939705777s
+Total proving time is 1m 47s 959ms 653us 753ns
+CompressedSNARK::proof_size 14.95 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 627.728581ms
+=========================================================
+The below line is in CSV format for performance comparison
+arecibo_batch,128,8,107.959653753s,627.728581ms,15304,4.10 GiB,56.643260599s
+Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400

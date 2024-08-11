@@ -1,0 +1,155 @@
+Took 2.866833ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 14.015954755s 
+PublicParams::size 213.38 MiB
+Number of constraints per step (primary circuit): 739964
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 738184
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 8 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 363ns 
+RecursiveSNARK::prove 1 : took 334.167902ms 
+RecursiveSNARK::prove 2 : took 380.020093ms 
+RecursiveSNARK::prove 3 : took 449.757827ms 
+RecursiveSNARK::prove 4 : took 457.042536ms 
+RecursiveSNARK::prove 5 : took 503.975586ms 
+RecursiveSNARK::prove 6 : took 540.468937ms 
+RecursiveSNARK::prove 7 : took 549.397932ms 
+RecursiveSNARK::prove 8 : took 513.488184ms 
+RecursiveSNARK::prove 9 : took 547.565724ms 
+RecursiveSNARK::prove 10 : took 554.747256ms 
+RecursiveSNARK::prove 11 : took 526.448841ms 
+RecursiveSNARK::prove 12 : took 540.859614ms 
+RecursiveSNARK::prove 13 : took 563.473315ms 
+RecursiveSNARK::prove 14 : took 552.729969ms 
+RecursiveSNARK::prove 15 : took 564.99174ms 
+RecursiveSNARK::prove 16 : took 527.441616ms 
+RecursiveSNARK::prove 17 : took 530.011152ms 
+RecursiveSNARK::prove 18 : took 562.27516ms 
+RecursiveSNARK::prove 19 : took 538.041309ms 
+RecursiveSNARK::prove 20 : took 533.257294ms 
+RecursiveSNARK::prove 21 : took 573.172837ms 
+RecursiveSNARK::prove 22 : took 545.510055ms 
+RecursiveSNARK::prove 23 : took 560.068726ms 
+RecursiveSNARK::prove 24 : took 544.194773ms 
+RecursiveSNARK::prove 25 : took 529.546608ms 
+RecursiveSNARK::prove 26 : took 535.041742ms 
+RecursiveSNARK::prove 27 : took 535.435899ms 
+RecursiveSNARK::prove 28 : took 534.421452ms 
+RecursiveSNARK::prove 29 : took 545.310118ms 
+RecursiveSNARK::prove 30 : took 554.528633ms 
+RecursiveSNARK::prove 31 : took 534.946706ms 
+RecursiveSNARK::prove 32 : took 581.966724ms 
+RecursiveSNARK::prove 33 : took 561.530531ms 
+RecursiveSNARK::prove 34 : took 574.298157ms 
+RecursiveSNARK::prove 35 : took 575.49951ms 
+RecursiveSNARK::prove 36 : took 576.62953ms 
+RecursiveSNARK::prove 37 : took 581.616565ms 
+RecursiveSNARK::prove 38 : took 568.440166ms 
+RecursiveSNARK::prove 39 : took 560.524755ms 
+RecursiveSNARK::prove 40 : took 577.185103ms 
+RecursiveSNARK::prove 41 : took 540.023272ms 
+RecursiveSNARK::prove 42 : took 532.764199ms 
+RecursiveSNARK::prove 43 : took 550.020757ms 
+RecursiveSNARK::prove 44 : took 589.152065ms 
+RecursiveSNARK::prove 45 : took 557.77727ms 
+RecursiveSNARK::prove 46 : took 573.236045ms 
+RecursiveSNARK::prove 47 : took 567.219402ms 
+RecursiveSNARK::prove 48 : took 570.536799ms 
+RecursiveSNARK::prove 49 : took 553.380052ms 
+RecursiveSNARK::prove 50 : took 573.344435ms 
+RecursiveSNARK::prove 51 : took 569.044176ms 
+RecursiveSNARK::prove 52 : took 571.17557ms 
+RecursiveSNARK::prove 53 : took 550.886776ms 
+RecursiveSNARK::prove 54 : took 545.043634ms 
+RecursiveSNARK::prove 55 : took 540.732886ms 
+RecursiveSNARK::prove 56 : took 586.839763ms 
+RecursiveSNARK::prove 57 : took 566.80444ms 
+RecursiveSNARK::prove 58 : took 579.0481ms 
+RecursiveSNARK::prove 59 : took 569.890615ms 
+RecursiveSNARK::prove 60 : took 580.145778ms 
+RecursiveSNARK::prove 61 : took 613.817137ms 
+RecursiveSNARK::prove 62 : took 606.512809ms 
+RecursiveSNARK::prove 63 : took 566.820939ms 
+RecursiveSNARK::prove 64 : took 560.119903ms 
+RecursiveSNARK::prove 65 : took 543.985067ms 
+RecursiveSNARK::prove 66 : took 537.545404ms 
+RecursiveSNARK::prove 67 : took 541.376146ms 
+RecursiveSNARK::prove 68 : took 585.864164ms 
+RecursiveSNARK::prove 69 : took 561.945917ms 
+RecursiveSNARK::prove 70 : took 568.499668ms 
+RecursiveSNARK::prove 71 : took 568.793334ms 
+RecursiveSNARK::prove 72 : took 556.057335ms 
+RecursiveSNARK::prove 73 : took 561.554091ms 
+RecursiveSNARK::prove 74 : took 551.086833ms 
+RecursiveSNARK::prove 75 : took 571.551066ms 
+RecursiveSNARK::prove 76 : took 539.168534ms 
+RecursiveSNARK::prove 77 : took 564.138905ms 
+RecursiveSNARK::prove 78 : took 541.852775ms 
+RecursiveSNARK::prove 79 : took 574.269309ms 
+RecursiveSNARK::prove 80 : took 546.546007ms 
+RecursiveSNARK::prove 81 : took 544.809342ms 
+RecursiveSNARK::prove 82 : took 553.423728ms 
+RecursiveSNARK::prove 83 : took 563.877217ms 
+RecursiveSNARK::prove 84 : took 551.542519ms 
+RecursiveSNARK::prove 85 : took 571.726292ms 
+RecursiveSNARK::prove 86 : took 552.602937ms 
+RecursiveSNARK::prove 87 : took 553.934002ms 
+RecursiveSNARK::prove 88 : took 540.253802ms 
+RecursiveSNARK::prove 89 : took 556.252055ms 
+RecursiveSNARK::prove 90 : took 542.12193ms 
+RecursiveSNARK::prove 91 : took 555.983141ms 
+RecursiveSNARK::prove 92 : took 594.382209ms 
+RecursiveSNARK::prove 93 : took 552.044787ms 
+RecursiveSNARK::prove 94 : took 543.175094ms 
+RecursiveSNARK::prove 95 : took 558.855588ms 
+RecursiveSNARK::prove 96 : took 563.388894ms 
+RecursiveSNARK::prove 97 : took 573.251697ms 
+RecursiveSNARK::prove 98 : took 575.398691ms 
+RecursiveSNARK::prove 99 : took 562.099633ms 
+RecursiveSNARK::prove 100 : took 553.569719ms 
+RecursiveSNARK::prove 101 : took 576.934267ms 
+RecursiveSNARK::prove 102 : took 576.12187ms 
+RecursiveSNARK::prove 103 : took 548.30307ms 
+RecursiveSNARK::prove 104 : took 563.95091ms 
+RecursiveSNARK::prove 105 : took 566.065311ms 
+RecursiveSNARK::prove 106 : took 557.642538ms 
+RecursiveSNARK::prove 107 : took 553.50124ms 
+RecursiveSNARK::prove 108 : took 562.842031ms 
+RecursiveSNARK::prove 109 : took 545.094608ms 
+RecursiveSNARK::prove 110 : took 567.246145ms 
+RecursiveSNARK::prove 111 : took 589.023491ms 
+RecursiveSNARK::prove 112 : took 571.123427ms 
+RecursiveSNARK::prove 113 : took 594.937875ms 
+RecursiveSNARK::prove 114 : took 573.366443ms 
+RecursiveSNARK::prove 115 : took 568.052788ms 
+RecursiveSNARK::prove 116 : took 560.550206ms 
+RecursiveSNARK::prove 117 : took 546.970235ms 
+RecursiveSNARK::prove 118 : took 549.530293ms 
+RecursiveSNARK::prove 119 : took 590.128452ms 
+RecursiveSNARK::prove 120 : took 553.243804ms 
+RecursiveSNARK::prove 121 : took 569.938071ms 
+RecursiveSNARK::prove 122 : took 559.228701ms 
+RecursiveSNARK::prove 123 : took 534.290615ms 
+RecursiveSNARK::prove 124 : took 556.132821ms 
+RecursiveSNARK::prove 125 : took 565.131359ms 
+RecursiveSNARK::prove 126 : took 562.839373ms 
+RecursiveSNARK::prove 127 : took 554.860096ms 
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Total time taken by RecursiveSNARK::prove_steps: 71.072005908s
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove took 3.730900869s
+Total proving time is 1m 14s 962ms 357us 178ns
+CompressedSNARK::proof_size 13.41 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 45.730342ms
+=========================================================
+The below line is in CSV format for performance comparison
+nova_batch,8,128,74.962357178s,3.730900869s,71.072005908s,45.730342ms,13736,213.38 MiB,14.015954755s
+Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400

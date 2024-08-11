@@ -1,0 +1,43 @@
+Took 2.924441ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 29.597498478s 
+PublicParams::size 2.06 GiB
+Number of constraints per step (primary circuit): 5827956
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 5813576
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 64 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 341ns 
+RecursiveSNARK::prove 1 : took 2.214821614s 
+RecursiveSNARK::prove 2 : took 2.644296576s 
+RecursiveSNARK::prove 3 : took 2.898230069s 
+RecursiveSNARK::prove 4 : took 3.032843662s 
+RecursiveSNARK::prove 5 : took 3.119488425s 
+RecursiveSNARK::prove 6 : took 3.113085652s 
+RecursiveSNARK::prove 7 : took 3.219084219s 
+RecursiveSNARK::prove 8 : took 3.330392268s 
+RecursiveSNARK::prove 9 : took 3.39724578s 
+RecursiveSNARK::prove 10 : took 3.393304756s 
+RecursiveSNARK::prove 11 : took 3.386951333s 
+RecursiveSNARK::prove 12 : took 3.405202092s 
+RecursiveSNARK::prove 13 : took 3.614136987s 
+RecursiveSNARK::prove 14 : took 3.708144826s 
+RecursiveSNARK::prove 15 : took 3.619810976s 
+Total time taken by RecursiveSNARK::prove_steps: 48.09739164s
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove: true, took 13.162209474s
+Total proving time is 1m 22s 472ms 809us 545ns
+CompressedSNARK::proof_size 14.58 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 311.997236ms
+=========================================================
+The below line is in CSV format for performance comparison
+arecibo_batch,64,16,82.472809545s,311.997236ms,14928,2.06 GiB,29.597498478s
+Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400

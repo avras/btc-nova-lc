@@ -1,0 +1,91 @@
+Took 1.782595ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 8.446984641s 
+PublicParams::size 538.50 MiB
+Number of constraints per step (primary circuit): 1466820
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 1463240
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 16 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 265ns 
+RecursiveSNARK::prove 1 : took 593.687233ms 
+RecursiveSNARK::prove 2 : took 758.471566ms 
+RecursiveSNARK::prove 3 : took 764.223835ms 
+RecursiveSNARK::prove 4 : took 879.197765ms 
+RecursiveSNARK::prove 5 : took 854.057152ms 
+RecursiveSNARK::prove 6 : took 854.66385ms 
+RecursiveSNARK::prove 7 : took 880.83896ms 
+RecursiveSNARK::prove 8 : took 918.670361ms 
+RecursiveSNARK::prove 9 : took 923.419441ms 
+RecursiveSNARK::prove 10 : took 943.416204ms 
+RecursiveSNARK::prove 11 : took 942.061497ms 
+RecursiveSNARK::prove 12 : took 977.711678ms 
+RecursiveSNARK::prove 13 : took 981.820367ms 
+RecursiveSNARK::prove 14 : took 984.850941ms 
+RecursiveSNARK::prove 15 : took 977.153813ms 
+RecursiveSNARK::prove 16 : took 999.511346ms 
+RecursiveSNARK::prove 17 : took 999.966895ms 
+RecursiveSNARK::prove 18 : took 978.670954ms 
+RecursiveSNARK::prove 19 : took 1.019500328s 
+RecursiveSNARK::prove 20 : took 1.000711682s 
+RecursiveSNARK::prove 21 : took 1.04590034s 
+RecursiveSNARK::prove 22 : took 1.024452107s 
+RecursiveSNARK::prove 23 : took 1.06469643s 
+RecursiveSNARK::prove 24 : took 1.058424198s 
+RecursiveSNARK::prove 25 : took 1.01095466s 
+RecursiveSNARK::prove 26 : took 1.003761834s 
+RecursiveSNARK::prove 27 : took 1.078632492s 
+RecursiveSNARK::prove 28 : took 1.041304088s 
+RecursiveSNARK::prove 29 : took 1.037599019s 
+RecursiveSNARK::prove 30 : took 1.029904023s 
+RecursiveSNARK::prove 31 : took 1.044779706s 
+RecursiveSNARK::prove 32 : took 1.036765233s 
+RecursiveSNARK::prove 33 : took 1.052555788s 
+RecursiveSNARK::prove 34 : took 1.028702345s 
+RecursiveSNARK::prove 35 : took 1.045683192s 
+RecursiveSNARK::prove 36 : took 998.148095ms 
+RecursiveSNARK::prove 37 : took 1.023640524s 
+RecursiveSNARK::prove 38 : took 1.034661242s 
+RecursiveSNARK::prove 39 : took 1.02684223s 
+RecursiveSNARK::prove 40 : took 1.018434687s 
+RecursiveSNARK::prove 41 : took 1.013142746s 
+RecursiveSNARK::prove 42 : took 1.072387486s 
+RecursiveSNARK::prove 43 : took 991.324857ms 
+RecursiveSNARK::prove 44 : took 1.031910977s 
+RecursiveSNARK::prove 45 : took 1.044847103s 
+RecursiveSNARK::prove 46 : took 1.018727135s 
+RecursiveSNARK::prove 47 : took 1.065652596s 
+RecursiveSNARK::prove 48 : took 1.007222854s 
+RecursiveSNARK::prove 49 : took 1.033628743s 
+RecursiveSNARK::prove 50 : took 1.039397149s 
+RecursiveSNARK::prove 51 : took 1.051607693s 
+RecursiveSNARK::prove 52 : took 1.036021675s 
+RecursiveSNARK::prove 53 : took 1.004089481s 
+RecursiveSNARK::prove 54 : took 1.048391695s 
+RecursiveSNARK::prove 55 : took 1.098522105s 
+RecursiveSNARK::prove 56 : took 1.014610543s 
+RecursiveSNARK::prove 57 : took 1.060008965s 
+RecursiveSNARK::prove 58 : took 1.007842671s 
+RecursiveSNARK::prove 59 : took 1.052961084s 
+RecursiveSNARK::prove 60 : took 1.063354645s 
+RecursiveSNARK::prove 61 : took 1.012695239s 
+RecursiveSNARK::prove 62 : took 1.04047512s 
+RecursiveSNARK::prove 63 : took 1.035718717s 
+Total time taken by RecursiveSNARK::prove_steps: 62.784320184s
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove: true, took 3.692241906s
+Total proving time is 1m 12s 61ms 697us 520ns
+CompressedSNARK::proof_size 13.84 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 77.879893ms
+=========================================================
+The below line is in CSV format for performance comparison
+arecibo_batch,16,64,72.06169752s,77.879893ms,14176,538.50 MiB,8.446984641s
+Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400
