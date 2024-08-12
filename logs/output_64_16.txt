@@ -1,0 +1,43 @@
+Took 3.565407ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 105.977977374s 
+PublicParams::size 1.56 GiB
+Number of constraints per step (primary circuit): 5827956
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 5813576
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 64 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 274ns 
+RecursiveSNARK::prove 1 : took 1.919813484s 
+RecursiveSNARK::prove 2 : took 2.408283992s 
+RecursiveSNARK::prove 3 : took 2.664128611s 
+RecursiveSNARK::prove 4 : took 2.72423091s 
+RecursiveSNARK::prove 5 : took 2.854211063s 
+RecursiveSNARK::prove 6 : took 3.121914478s 
+RecursiveSNARK::prove 7 : took 3.072285399s 
+RecursiveSNARK::prove 8 : took 3.137838907s 
+RecursiveSNARK::prove 9 : took 3.184623796s 
+RecursiveSNARK::prove 10 : took 3.222095016s 
+RecursiveSNARK::prove 11 : took 3.408011173s 
+RecursiveSNARK::prove 12 : took 3.348705894s 
+RecursiveSNARK::prove 13 : took 3.29382984s 
+RecursiveSNARK::prove 14 : took 3.31929229s 
+RecursiveSNARK::prove 15 : took 3.265967398s 
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Total time taken by RecursiveSNARK::prove_steps: 49.526305873s
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove took 22.290630431s
+Total proving time is 1m 12s 757ms 817us 532ns
+CompressedSNARK::proof_size 14.52 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 292.671284ms
+=========================================================
+The below line is in CSV format for performance comparison
+nova_batch,64,16,72.757817532s,22.290630431s,49.526305873s,292.671284ms,14864,1.56 GiB,105.977977374s
+Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400

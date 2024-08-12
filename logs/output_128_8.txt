@@ -1,0 +1,35 @@
+Took 2.752084ms to read 1024 Bitcoin headers
+Producing public parameters...
+PublicParams::setup, took 215.90134843s 
+PublicParams::size 3.10 GiB
+Number of constraints per step (primary circuit): 11642804
+Number of constraints per step (secondary circuit): 10538
+Number of variables per step (primary circuit): 11614024
+Number of variables per step (secondary circuit): 10518
+Generating a RecursiveSNARK with 128 Bitcoin headers validated per step...
+RecursiveSNARK::prove 0 : took 266ns 
+RecursiveSNARK::prove 1 : took 3.694830338s 
+RecursiveSNARK::prove 2 : took 4.298391738s 
+RecursiveSNARK::prove 3 : took 5.123122543s 
+RecursiveSNARK::prove 4 : took 5.223770976s 
+RecursiveSNARK::prove 5 : took 5.833060672s 
+RecursiveSNARK::prove 6 : took 5.95934604s 
+RecursiveSNARK::prove 7 : took 6.12611478s 
+Verifying a RecursiveSNARK...
+RecursiveSNARK::verify: true
+Total time taken by RecursiveSNARK::prove_steps: 44.711324228s
+Generating a CompressedSNARK using Spartan with HyperKZG...
+CompressedSNARK::prove took 44.704117192s
+Total proving time is 1m 31s 546ms 264us 300ns
+CompressedSNARK::proof_size 14.88 KiB
+Verifying a CompressedSNARK...
+CompressedSNARK::verify took 573.832731ms
+=========================================================
+The below line is in CSV format for performance comparison
+nova_batch,128,8,91.5462643s,44.704117192s,44.711324228s,573.832731ms,15240,3.10 GiB,215.90134843s
+Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time
+=========================================================
+Verified upto height   1023
+Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
+PoW threshold in block 0x00000000ffff0000000000000000000000000000000000000000000000000000
+Accumulated chainwork  0x0000000000000000000000000000000000000000000000000000040004000400
