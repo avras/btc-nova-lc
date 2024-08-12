@@ -1,21 +1,21 @@
 	Command being timed: "./target/release/examples/validate_btc_header_batch scripts/headers_100000.txt 64 16"
-	User time (seconds): 1162.72
-	System time (seconds): 103.92
-	Percent of CPU this job got: 1095%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:55.58
+	User time (seconds): 1151.76
+	System time (seconds): 93.18
+	Percent of CPU this job got: 1084%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:54.84
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 15019708
+	Maximum resident set size (kbytes): 15021944
 	Average resident set size (kbytes): 0
-	Major (requiring I/O) page faults: 0
-	Minor (reclaiming a frame) page faults: 1076206
-	Voluntary context switches: 18861
-	Involuntary context switches: 30624
+	Major (requiring I/O) page faults: 1
+	Minor (reclaiming a frame) page faults: 1061289
+	Voluntary context switches: 17694
+	Involuntary context switches: 18973
 	Swaps: 0
 	File system inputs: 0
-	File system outputs: 88
+	File system outputs: 32
 	Socket messages sent: 0
 	Socket messages received: 0
 	Signals delivered: 0

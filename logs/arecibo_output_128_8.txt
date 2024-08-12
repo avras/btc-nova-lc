@@ -1,33 +1,33 @@
-Took 3.140953ms to read 1024 Bitcoin headers
+Took 1.620205ms to read 1024 Bitcoin headers
 Producing public parameters...
-PublicParams::setup, took 56.643260599s 
+PublicParams::setup, took 54.659960252s 
 PublicParams::size 4.10 GiB
 Number of constraints per step (primary circuit): 11642804
 Number of constraints per step (secondary circuit): 10538
 Number of variables per step (primary circuit): 11614024
 Number of variables per step (secondary circuit): 10518
 Generating a RecursiveSNARK with 128 Bitcoin headers validated per step...
-RecursiveSNARK::prove 0 : took 204ns 
-RecursiveSNARK::prove 1 : took 4.582215647s 
-RecursiveSNARK::prove 2 : took 5.21845829s 
-RecursiveSNARK::prove 3 : took 5.908300267s 
-RecursiveSNARK::prove 4 : took 6.008527044s 
-RecursiveSNARK::prove 5 : took 6.505032035s 
-RecursiveSNARK::prove 6 : took 6.388971145s 
-RecursiveSNARK::prove 7 : took 6.474761802s 
-Total time taken by RecursiveSNARK::prove_steps: 41.086449461s
+RecursiveSNARK::prove 0 : took 295ns 
+RecursiveSNARK::prove 1 : took 4.636233188s 
+RecursiveSNARK::prove 2 : took 5.295133882s 
+RecursiveSNARK::prove 3 : took 5.675457754s 
+RecursiveSNARK::prove 4 : took 5.887142651s 
+RecursiveSNARK::prove 5 : took 6.324303719s 
+RecursiveSNARK::prove 6 : took 6.227731747s 
+RecursiveSNARK::prove 7 : took 6.480898771s 
 Verifying a RecursiveSNARK...
 RecursiveSNARK::verify: true
+Total time taken by RecursiveSNARK::prove_steps: 46.777498738s
 Generating a CompressedSNARK using Spartan with HyperKZG...
-CompressedSNARK::prove: true, took 25.939705777s
-Total proving time is 1m 47s 959ms 653us 753ns
+CompressedSNARK::prove took 37.653069281s
+Total proving time is 1m 46s 818ms 100us 854ns
 CompressedSNARK::proof_size 14.95 KiB
 Verifying a CompressedSNARK...
-CompressedSNARK::verify took 627.728581ms
+CompressedSNARK::verify took 631.889941ms
 =========================================================
 The below line is in CSV format for performance comparison
-arecibo_batch,128,8,107.959653753s,627.728581ms,15304,4.10 GiB,56.643260599s
-Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time
+arecibo_batch,128,8,106.818100854s,37.653069281s,46.777498738s,631.889941ms,15304,4.10 GiB,54.659960252s
+Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time
 =========================================================
 Verified upto height   1023
 Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7

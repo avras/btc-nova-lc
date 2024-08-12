@@ -1,57 +1,57 @@
-Took 2.895159ms to read 1024 Bitcoin headers
+Took 4.520016ms to read 1024 Bitcoin headers
 Producing public parameters...
-PublicParams::setup, took 15.308974717s 
+PublicParams::setup, took 15.374152801s 
 PublicParams::size 1.04 GiB
 Number of constraints per step (primary circuit): 2920532
 Number of constraints per step (secondary circuit): 10538
 Number of variables per step (primary circuit): 2913352
 Number of variables per step (secondary circuit): 10518
 Generating a RecursiveSNARK with 32 Bitcoin headers validated per step...
-RecursiveSNARK::prove 0 : took 273ns 
-RecursiveSNARK::prove 1 : took 1.178830765s 
-RecursiveSNARK::prove 2 : took 1.418455018s 
-RecursiveSNARK::prove 3 : took 1.434074447s 
-RecursiveSNARK::prove 4 : took 1.576635688s 
-RecursiveSNARK::prove 5 : took 1.63517112s 
-RecursiveSNARK::prove 6 : took 1.710092321s 
-RecursiveSNARK::prove 7 : took 1.708209614s 
-RecursiveSNARK::prove 8 : took 1.778115121s 
-RecursiveSNARK::prove 9 : took 1.762948708s 
-RecursiveSNARK::prove 10 : took 1.800629177s 
-RecursiveSNARK::prove 11 : took 1.824411004s 
-RecursiveSNARK::prove 12 : took 1.853570987s 
-RecursiveSNARK::prove 13 : took 1.81629787s 
-RecursiveSNARK::prove 14 : took 1.843545603s 
-RecursiveSNARK::prove 15 : took 1.885987718s 
-RecursiveSNARK::prove 16 : took 1.888457783s 
-RecursiveSNARK::prove 17 : took 1.946605561s 
-RecursiveSNARK::prove 18 : took 2.004923993s 
-RecursiveSNARK::prove 19 : took 1.914376836s 
-RecursiveSNARK::prove 20 : took 1.916474816s 
-RecursiveSNARK::prove 21 : took 1.963770223s 
-RecursiveSNARK::prove 22 : took 1.913717277s 
-RecursiveSNARK::prove 23 : took 1.938893332s 
-RecursiveSNARK::prove 24 : took 1.977949062s 
-RecursiveSNARK::prove 25 : took 2.028260563s 
-RecursiveSNARK::prove 26 : took 1.978484612s 
-RecursiveSNARK::prove 27 : took 1.956146821s 
-RecursiveSNARK::prove 28 : took 2.085791589s 
-RecursiveSNARK::prove 29 : took 2.02589887s 
-RecursiveSNARK::prove 30 : took 1.962633453s 
-RecursiveSNARK::prove 31 : took 2.01427079s 
-Total time taken by RecursiveSNARK::prove_steps: 56.744282314s
+RecursiveSNARK::prove 0 : took 251ns 
+RecursiveSNARK::prove 1 : took 1.155860632s 
+RecursiveSNARK::prove 2 : took 1.363584707s 
+RecursiveSNARK::prove 3 : took 1.4794504s 
+RecursiveSNARK::prove 4 : took 1.518795291s 
+RecursiveSNARK::prove 5 : took 1.589585278s 
+RecursiveSNARK::prove 6 : took 1.676116016s 
+RecursiveSNARK::prove 7 : took 1.707074462s 
+RecursiveSNARK::prove 8 : took 1.711693001s 
+RecursiveSNARK::prove 9 : took 1.784148542s 
+RecursiveSNARK::prove 10 : took 1.745706386s 
+RecursiveSNARK::prove 11 : took 1.8009062s 
+RecursiveSNARK::prove 12 : took 1.793501215s 
+RecursiveSNARK::prove 13 : took 1.778964118s 
+RecursiveSNARK::prove 14 : took 1.79975292s 
+RecursiveSNARK::prove 15 : took 1.923241363s 
+RecursiveSNARK::prove 16 : took 1.914134361s 
+RecursiveSNARK::prove 17 : took 1.912599574s 
+RecursiveSNARK::prove 18 : took 1.889692921s 
+RecursiveSNARK::prove 19 : took 1.991744591s 
+RecursiveSNARK::prove 20 : took 1.976785175s 
+RecursiveSNARK::prove 21 : took 1.957663255s 
+RecursiveSNARK::prove 22 : took 1.985083558s 
+RecursiveSNARK::prove 23 : took 1.917894612s 
+RecursiveSNARK::prove 24 : took 2.004149664s 
+RecursiveSNARK::prove 25 : took 1.951317268s 
+RecursiveSNARK::prove 26 : took 1.952422887s 
+RecursiveSNARK::prove 27 : took 1.98237965s 
+RecursiveSNARK::prove 28 : took 1.89486892s 
+RecursiveSNARK::prove 29 : took 2.037196218s 
+RecursiveSNARK::prove 30 : took 2.028520572s 
+RecursiveSNARK::prove 31 : took 1.948954449s 
 Verifying a RecursiveSNARK...
 RecursiveSNARK::verify: true
+Total time taken by RecursiveSNARK::prove_steps: 58.23864329s
 Generating a CompressedSNARK using Spartan with HyperKZG...
-CompressedSNARK::prove: true, took 7.007827185s
-Total proving time is 1m 15s 250ms 150us 860ns
+CompressedSNARK::prove took 9.955030797s
+Total proving time is 1m 13s 907ms 678us 171ns
 CompressedSNARK::proof_size 14.21 KiB
 Verifying a CompressedSNARK...
-CompressedSNARK::verify took 157.51937ms
+CompressedSNARK::verify took 151.962479ms
 =========================================================
 The below line is in CSV format for performance comparison
-arecibo_batch,32,32,75.25015086s,157.51937ms,14552,1.04 GiB,15.308974717s
-Fields: num_hdrs_per_step,num_steps,prove_time,verify_time,proof_size,pp_size,pp_gen_time
+arecibo_batch,32,32,73.907678171s,9.955030797s,58.23864329s,151.962479ms,14552,1.04 GiB,15.374152801s
+Fields: num_hdrs_per_step,num_steps,prove_time,compressed_snark_prove_time,recursive_snark_prove_time,verify_time,proof_size,pp_size,pp_gen_time
 =========================================================
 Verified upto height   1023
 Latest block hash      0x00000000e8817bc0ab40272591666f084b92130eee0e5172c04512dd6409fcb7
